@@ -1,0 +1,26 @@
+[package]
+name = "colossus-common"
+version = "1.0.0-beta.1"
+description = ""
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+
+
+[dependencies]
+serde = { workspace = true }
+serde_bytes = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
+bincode = "1"
+itertools = "0.13"
+proptest = "1"
+proptest-derive = "0.4"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+criterion = "0.5"
+paste = { version = "1" }

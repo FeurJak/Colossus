@@ -1,0 +1,14 @@
+[package]
+name = "colossus-errors"
+version = "1.0.0-beta.1"
+description = ""
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+colossus-types = { workspace = true }
+colossus-common = { workspace = true }
+protobuf = { workspace = true }

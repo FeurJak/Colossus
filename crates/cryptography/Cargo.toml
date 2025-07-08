@@ -1,0 +1,32 @@
+[package]
+name = "colossus-cryptography"
+version = "1.0.0-beta.1"
+description = ""
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+
+
+[dependencies]
+colossus-errors = { workspace = true }
+colossus-types = { workspace = true }
+curve25519-dalek = { workspace = true }
+serde = { workspace = true }
+serde_bytes = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+zeroize = { workspace = true }
+ed25519-dalek = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+bincode = "1"
+itertools = "0.13"
+proptest = "1"
+proptest-derive = "0.4"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+criterion = "0.5"
+paste = { version = "1" }
