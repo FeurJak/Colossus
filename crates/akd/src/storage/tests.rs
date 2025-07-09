@@ -8,8 +8,8 @@ use crate::tree_node::*;
 use crate::utils::byte_arr_from_u64;
 use colossus_errors::StorageError;
 use colossus_types::{AkdLabel, AkdValue, AzksValue, NodeLabel, hash::EMPTY_DIGEST};
-use rand::distributions::Alphanumeric;
-use rand::{Rng, thread_rng};
+use rand::distr::Alphanumeric;
+use rand::{Rng, rng};
 use std::time::{Duration, Instant};
 
 type Azks = crate::append_only_zks::Azks;
@@ -115,8 +115,7 @@ async fn test_get_and_set_item<Ns: Database>(storage: &Ns) {
 async fn test_batch_get_items<Ns: Database>(storage: &Ns) {
     let mut rand_users: Vec<Vec<u8>> = vec![];
     for _ in 0..20 {
-        let str: String =
-            thread_rng().sample_iter(&Alphanumeric).take(30).map(char::from).collect();
+        let str: String = rng().sample_iter(&Alphanumeric).take(30).map(char::from).collect();
         rand_users.push(str.as_bytes().to_vec());
     }
 
@@ -128,7 +127,10 @@ async fn test_batch_get_items<Ns: Database>(storage: &Ns) {
             data.push(DbRecord::ValueState(ValueState {
                 value: AkdValue(value.clone()),
                 version: epoch,
-                label: NodeLabel { label_val: byte_arr_from_u64(1), label_len: 1u32 },
+                label: NodeLabel {
+                    label_val: byte_arr_from_u64(1),
+                    label_len: 1u32,
+                },
                 epoch,
                 username: AkdLabel(user.clone()),
             }));
@@ -139,7 +141,9 @@ async fn test_batch_get_items<Ns: Database>(storage: &Ns) {
     let tic = Instant::now();
     assert_eq!(
         Ok(()),
-        storage.batch_set(data.clone(), crate::storage::traits::DbSetState::General).await
+        storage
+            .batch_set(data.clone(), crate::storage::traits::DbSetState::General)
+            .await
     );
     let toc: Duration = Instant::now() - tic;
     println!("Storage batch op: {} ms", toc.as_millis());
@@ -183,8 +187,9 @@ async fn test_batch_get_items<Ns: Database>(storage: &Ns) {
     }
 
     let user_keys: Vec<_> = rand_users.iter().map(|user| AkdLabel(user.clone())).collect();
-    let got_all_min_states =
-        storage.get_user_state_versions(&user_keys, ValueStateRetrievalFlag::MinEpoch).await;
+    let got_all_min_states = storage
+        .get_user_state_versions(&user_keys, ValueStateRetrievalFlag::MinEpoch)
+        .await;
     // should be the same thing as the previous get
     match got_all_min_states {
         Err(err) => panic!("Failed to retrieve batch of user at min epochs: {:?}", err),
@@ -223,8 +228,9 @@ async fn test_batch_get_items<Ns: Database>(storage: &Ns) {
         },
     }
 
-    let got_all_max_states =
-        storage.get_user_state_versions(&user_keys, ValueStateRetrievalFlag::MaxEpoch).await;
+    let got_all_max_states = storage
+        .get_user_state_versions(&user_keys, ValueStateRetrievalFlag::MaxEpoch)
+        .await;
     // should be the same thing as the previous get
     match got_all_max_states {
         Err(err) => panic!("Failed to retrieve batch of user at min epochs: {:?}", err),
@@ -266,8 +272,7 @@ async fn test_batch_get_items<Ns: Database>(storage: &Ns) {
 async fn test_transactions<S: Database>(storage: &StorageManager<S>) {
     let mut rand_users: Vec<Vec<u8>> = vec![];
     for _ in 0..20 {
-        let str: String =
-            thread_rng().sample_iter(&Alphanumeric).take(30).map(char::from).collect();
+        let str: String = rng().sample_iter(&Alphanumeric).take(30).map(char::from).collect();
         rand_users.push(str.as_bytes().to_vec());
     }
 
@@ -279,7 +284,10 @@ async fn test_transactions<S: Database>(storage: &StorageManager<S>) {
             data.push(DbRecord::ValueState(ValueState {
                 value: AkdValue(value.clone()),
                 version: 1u64,
-                label: NodeLabel { label_val: byte_arr_from_u64(1), label_len: 1u32 },
+                label: NodeLabel {
+                    label_val: byte_arr_from_u64(1),
+                    label_len: 1u32,
+                },
                 epoch,
                 username: AkdLabel(user.clone()),
             }));
@@ -324,21 +332,23 @@ async fn test_transactions<S: Database>(storage: &StorageManager<S>) {
     let toc: Duration = Instant::now() - tic;
     println!("Transactional storage batch op: {} ms", toc.as_millis());
 
-    let got = storage.get::<ValueState>(&ValueStateKey(rand_users[0].clone(), 10 + 10000)).await;
+    let got = storage
+        .get::<ValueState>(&ValueStateKey(rand_users[0].clone(), 10 + 10000))
+        .await;
     if got.is_err() {
         panic!("Failed to retrieve a user after batch insert");
     }
 }
 
 async fn test_user_data<S: Database>(storage: &S) {
-    let rand_user = thread_rng()
+    let rand_user = rng()
         .sample_iter(&Alphanumeric)
         .take(30)
         .map(char::from)
         .collect::<String>()
         .as_bytes()
         .to_vec();
-    let rand_value = thread_rng()
+    let rand_value = rng()
         .sample_iter(&Alphanumeric)
         .take(1028)
         .map(char::from)
@@ -348,7 +358,10 @@ async fn test_user_data<S: Database>(storage: &S) {
     let mut sample_state = ValueState {
         value: AkdValue(rand_value.clone()),
         version: 1u64,
-        label: NodeLabel { label_val: byte_arr_from_u64(1), label_len: 1u32 },
+        label: NodeLabel {
+            label_val: byte_arr_from_u64(1),
+            label_len: 1u32,
+        },
         epoch: 1u64,
         username: AkdLabel(rand_user),
     };
@@ -415,8 +428,9 @@ async fn test_user_data<S: Database>(storage: &S) {
         specific_result
     );
 
-    let specifc_result =
-        storage.get::<ValueState>(&ValueStateKey(sample_state.username.to_vec(), 123)).await;
+    let specifc_result = storage
+        .get::<ValueState>(&ValueStateKey(sample_state.username.to_vec(), 123))
+        .await;
     if let Ok(DbRecord::ValueState(state)) = specifc_result {
         assert_eq!(
             ValueState {
@@ -451,8 +465,9 @@ async fn test_user_data<S: Database>(storage: &S) {
         specific_result
     );
 
-    let specific_result =
-        storage.get_user_state(&sample_state.username, ValueStateRetrievalFlag::MinEpoch).await;
+    let specific_result = storage
+        .get_user_state(&sample_state.username, ValueStateRetrievalFlag::MinEpoch)
+        .await;
     assert_eq!(
         Ok(ValueState {
             epoch: 1,
@@ -464,8 +479,9 @@ async fn test_user_data<S: Database>(storage: &S) {
         specific_result
     );
 
-    let specific_result =
-        storage.get_user_state(&sample_state.username, ValueStateRetrievalFlag::MaxEpoch).await;
+    let specific_result = storage
+        .get_user_state(&sample_state.username, ValueStateRetrievalFlag::MaxEpoch)
+        .await;
     assert_eq!(
         Ok(ValueState {
             epoch: 456,
@@ -502,7 +518,7 @@ async fn test_user_data<S: Database>(storage: &S) {
 async fn test_tombstoning_data<S: Database>(
     storage: &StorageManager<S>,
 ) -> Result<(), crate::AkdError> {
-    let rand_user = thread_rng()
+    let rand_user = rng()
         .sample_iter(&Alphanumeric)
         .take(30)
         .map(char::from)
@@ -514,7 +530,10 @@ async fn test_tombstoning_data<S: Database>(
     let mut sample_state = ValueState {
         value: AkdValue(rand_value.clone()),
         version: 1u64,
-        label: NodeLabel { label_val: byte_arr_from_u64(1), label_len: 1u32 },
+        label: NodeLabel {
+            label_val: byte_arr_from_u64(1),
+            label_len: 1u32,
+        },
         epoch: 1u64,
         username: AkdLabel(rand_user.clone()),
     };
@@ -542,25 +561,35 @@ async fn test_tombstoning_data<S: Database>(
     storage.tombstone_value_states(&sample_state2.username, 2).await?;
 
     // check that correct records are tombstoned
-    storage.get_user_data(&sample_state.username).await?.states.iter().for_each(|value_state| {
-        if value_state.epoch <= 1 {
-            // should be a tombstone
-            assert_eq!(crate::TOMBSTONE.to_vec(), value_state.value.0);
-        } else {
-            // should NOT be a tombstone
-            assert_ne!(crate::TOMBSTONE.to_vec(), value_state.value.0);
-        }
-    });
+    storage
+        .get_user_data(&sample_state.username)
+        .await?
+        .states
+        .iter()
+        .for_each(|value_state| {
+            if value_state.epoch <= 1 {
+                // should be a tombstone
+                assert_eq!(crate::TOMBSTONE.to_vec(), value_state.value.0);
+            } else {
+                // should NOT be a tombstone
+                assert_ne!(crate::TOMBSTONE.to_vec(), value_state.value.0);
+            }
+        });
 
-    storage.get_user_data(&sample_state2.username).await?.states.iter().for_each(|value_state| {
-        if value_state.epoch <= 2 {
-            // should be a tombstone
-            assert_eq!(crate::TOMBSTONE.to_vec(), value_state.value.0);
-        } else {
-            // should NOT be a tombstone
-            assert_ne!(crate::TOMBSTONE.to_vec(), value_state.value.0);
-        }
-    });
+    storage
+        .get_user_data(&sample_state2.username)
+        .await?
+        .states
+        .iter()
+        .for_each(|value_state| {
+            if value_state.epoch <= 2 {
+                // should be a tombstone
+                assert_eq!(crate::TOMBSTONE.to_vec(), value_state.value.0);
+            } else {
+                // should NOT be a tombstone
+                assert_ne!(crate::TOMBSTONE.to_vec(), value_state.value.0);
+            }
+        });
 
     Ok(())
 }

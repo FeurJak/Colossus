@@ -210,7 +210,7 @@ pub fn i2osp_array(input: &[u8]) -> Vec<u8> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use rand::{Rng, rngs::OsRng};
+    use rand::{Rng, SeedableRng, rngs::StdRng};
 
     #[test]
     fn test_get_marker_versions() {
@@ -243,24 +243,24 @@ mod tests {
     }
 
     fn gen_versions(
-        rng: &mut OsRng,
+        rng: &mut StdRng,
         start_type: &RangeType,
         end_type: &RangeType,
         epoch_type: &RangeType,
     ) -> (u64, u64, u64) {
         let small_jump = 10;
         let medium_jump = 1000;
-        let start_version: u64 = rng.gen_range(match start_type {
+        let start_version: u64 = rng.random_range(match start_type {
             RangeType::Small => 1..small_jump,
             RangeType::Medium => 1..medium_jump,
             RangeType::Large => 1..u64::MAX - 2 * (small_jump + medium_jump),
         });
-        let end_version: u64 = rng.gen_range(match end_type {
+        let end_version: u64 = rng.random_range(match end_type {
             RangeType::Small => start_version..start_version + small_jump,
             RangeType::Medium => start_version..start_version + medium_jump,
             RangeType::Large => start_version..u64::MAX - small_jump - medium_jump,
         });
-        let epoch: u64 = rng.gen_range(match epoch_type {
+        let epoch: u64 = rng.random_range(match epoch_type {
             RangeType::Small => end_version..end_version + small_jump,
             RangeType::Medium => end_version..end_version + medium_jump,
             RangeType::Large => end_version..u64::MAX,
@@ -274,7 +274,7 @@ mod tests {
 
         let iterations = 10000;
         let options = [RangeType::Small, RangeType::Medium, RangeType::Large];
-        let mut rng = OsRng;
+        let mut rng = StdRng::from_os_rng();
         for (start_type, end_type, epoch_type) in itertools::iproduct!(&options, &options, &options)
         {
             for _ in 0..iterations {

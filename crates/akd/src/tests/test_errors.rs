@@ -2,8 +2,6 @@
 //! Contains the tests for error conditions and invariants that should be upheld
 //! by the API.
 
-use std::default::Default;
-
 use crate::append_only_zks::AzksParallelismConfig;
 use crate::storage::types::KeyData;
 use crate::tree_node::TreeNodeWithPreviousValue;
@@ -21,6 +19,9 @@ use crate::{
     test_config,
     tests::{MockLocalDatabase, setup_mocked_db},
 };
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
+use std::default::Default;
 
 // // This test is meant to test the function poll_for_azks_change
 // // which is meant to detect changes in the azks, to prevent inconsistencies
@@ -85,7 +86,9 @@ async fn test_directory_azks_bootstrapping<TC: Configuration>() -> Result<(), Ak
 
     // Verify that a Storage error results in an error when attempting to create the Directory
     let mut mock_db = MockLocalDatabase { ..Default::default() };
-    mock_db.expect_get::<Azks>().returning(|_| Err(StorageError::Connection("Fire!".to_string())));
+    mock_db
+        .expect_get::<Azks>()
+        .returning(|_| Err(StorageError::Connection("Fire!".to_string())));
     mock_db.expect_set().times(0);
     let storage = StorageManager::new_no_cache(mock_db);
 
@@ -123,7 +126,10 @@ async fn test_key_history_dirty_reads<TC: Configuration>() -> Result<(), AkdErro
 
     let mut mock_db = MockLocalDatabase::default();
     mock_db.expect_get::<Azks>().returning(move |_| {
-        Ok(DbRecord::Azks(Azks { latest_epoch: committed_epoch, num_nodes: 1 }))
+        Ok(DbRecord::Azks(Azks {
+            latest_epoch: committed_epoch,
+            num_nodes: 1,
+        }))
     });
     mock_db.expect_get_user_data().returning(move |_| {
         Ok(KeyData {
@@ -220,8 +226,10 @@ async fn test_read_during_publish<TC: Configuration>() -> Result<(), AkdError> {
     .unwrap();
 
     // History proof should not contain the third epoch's update but still verify
-    let (history_proof, root_hash) =
-        akd.key_history(&AkdLabel::from("hello"), HistoryParams::default()).await.unwrap();
+    let (history_proof, root_hash) = akd
+        .key_history(&AkdLabel::from("hello"), HistoryParams::default())
+        .await
+        .unwrap();
     key_history_verify::<TC>(
         vrf_pk.as_bytes(),
         root_hash.hash(),
@@ -380,8 +388,8 @@ async fn test_key_history_verify_malformed<TC: Configuration>() -> Result<(), Ak
     let vrf = HardCodedAkdVRF {};
     let akd =
         Directory::<TC, _, _>::new(storage, vrf.clone(), AzksParallelismConfig::default()).await?;
-
-    let mut rng = rand::rngs::OsRng;
+    let seed = [0_u8; 32];
+    let mut rng = ChaCha20Rng::from_seed(seed);
     for _ in 0..100 {
         let mut updates = vec![];
         updates

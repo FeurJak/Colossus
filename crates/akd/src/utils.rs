@@ -15,5 +15,5 @@ pub(crate) fn byte_arr_from_u64(input_int: u64) -> [u8; 32] {
 
 #[allow(unused)]
 pub(crate) fn random_label(rng: &mut impl rand::Rng) -> crate::NodeLabel {
-    crate::NodeLabel { label_val: rng.r#gen::<[u8; 32]>(), label_len: 256 }
+    crate::NodeLabel { label_val: rng.random::<[u8; 32]>(), label_len: 256 }
 }

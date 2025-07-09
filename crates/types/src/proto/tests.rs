@@ -4,12 +4,12 @@
 use super::specs::types::*;
 use super::*;
 use crate::{AzksValue, Direction};
-use rand::{Rng, thread_rng};
+use rand::{Rng, rng};
 
 // ================= Test helpers ================= //
 
 fn random_hash() -> [u8; 32] {
-    thread_rng().r#gen::<[u8; 32]>()
+    rng().random::<[u8; 32]>()
 }
 
 fn random_azks_element() -> crate::AzksElement {
@@ -19,7 +19,7 @@ fn random_azks_element() -> crate::AzksElement {
 fn random_label() -> crate::NodeLabel {
     let label = crate::NodeLabel {
         label_val: random_hash(),
-        label_len: thread_rng().r#gen::<u32>() % 257, // Can be up to 256
+        label_len: rng().random::<u32>() % 257, // Can be up to 256
     };
     label.get_prefix(label.label_len)
 }
@@ -105,11 +105,11 @@ fn test_convert_non_membership_proof() {
 
 #[test]
 fn test_convert_lookup_proof() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let original = crate::LookupProof {
-        epoch: rng.r#gen(),
+        epoch: rng.random(),
         value: crate::AkdValue(random_hash().to_vec()),
-        version: rng.r#gen(),
+        version: rng.random(),
         existence_vrf_proof: random_hash().to_vec(),
         existence_proof: crate::MembershipProof {
             label: random_label(),
@@ -154,11 +154,11 @@ fn test_convert_lookup_proof() {
 
 #[test]
 fn test_convert_update_proof() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let original = crate::UpdateProof {
-        epoch: rng.r#gen(),
+        epoch: rng.random(),
         value: crate::AkdValue(random_hash().to_vec()),
-        version: rng.r#gen(),
+        version: rng.random(),
         existence_vrf_proof: random_hash().to_vec(),
         existence_proof: crate::MembershipProof {
             label: random_label(),
@@ -204,11 +204,11 @@ fn non_membership_proof() -> crate::NonMembershipProof {
 }
 
 fn upd_proof() -> crate::UpdateProof {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     crate::UpdateProof {
-        epoch: rng.r#gen(),
+        epoch: rng.random(),
         value: crate::AkdValue(random_hash().to_vec()),
-        version: rng.r#gen(),
+        version: rng.random(),
         existence_vrf_proof: random_hash().to_vec(),
         existence_proof: crate::MembershipProof {
             label: random_label(),

@@ -12,3 +12,4 @@ repository = { workspace = true }
 colossus-types = { workspace = true }
 colossus-common = { workspace = true }
 protobuf = { workspace = true }
+hashbrown = { workspace = true }

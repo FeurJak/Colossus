@@ -56,7 +56,6 @@ colored = { version = "3" }
 once_cell = { version = "1" }
 paste = { version = "1" }
 protobuf = { version = "3" }
-rand = { version = "0.8" }
 tracing = { version = "0.1.40", features = ["attributes"] }
 curve25519-dalek = { version = "4" }
 ed25519-dalek = { version = "2", features = [
@@ -64,5 +63,16 @@ ed25519-dalek = { version = "2", features = [
     "legacy_compatibility",
     "serde",
 ] }
-blake3 = { version = "1", default-features = false }
+blake3 = { version = "1.8", default-features = false }
 serde_bytes = { version = "0.11" }
+winter-crypto = { version = "0.13", default-features = false }
+winter-math = { version = "0.13", default-features = false }
+winter-utils = { version = "0.13", default-features = false }
+hashbrown = { version = "0.15",  features = ["serde"] }
+rand = { version = "0.9", features = ["std", "thread_rng"]  }
+rand_core = { version = "0.9" }
+rand-utils = { version = "0.13", package = "winter-rand-utils" }
+thiserror = { version = "2.0", default-features = false }
+num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
+num-complex = { version = "0.4", default-features = false }
+sha3 = { version = "0.10", default-features = false }

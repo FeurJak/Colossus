@@ -18,10 +18,6 @@ pub mod log {
 }
 
 pub mod local_auditing;
-// pub use akd_core::{
-//     ARITY, configuration, configuration::*, ecvrf, hash, hash::Digest, proto, types::*, verify,
-//     verify::history::HistoryParams,
-// };
 pub use colossus_common::{ARITY, utils::*};
 pub use colossus_cryptography::ecvrf;
 pub use colossus_errors::{
