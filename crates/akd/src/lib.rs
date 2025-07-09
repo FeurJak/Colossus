@@ -7,23 +7,22 @@ extern crate rand;
 
 pub mod append_only_zks;
 pub mod auditor;
+pub mod colossus;
 pub mod directory;
 pub mod helper_structs;
 pub mod storage;
 pub mod tree_node;
 pub mod verify;
-
 pub mod log {
     pub use tracing::{debug, error, info, trace, warn};
 }
-
 pub mod local_auditing;
-pub use colossus_common::{ARITY, utils::*};
-pub use colossus_cryptography::ecvrf;
-pub use colossus_errors::{
-    AkdError, AuditorError, AzksError, DirectoryError, ParallelismError, StorageError,
-    TreeNodeError, VerificationError, VrfError,
+pub use colossus::ColossusConfiguration;
+pub use colossus_common::{
+    ARITY,
+    utils::{byte_arr_from_u64, get_marker_version_log2, get_marker_versions, i2osp_array},
 };
+pub use colossus_cryptography::{ecvrf, hash::rpx};
 pub use colossus_types::*;
 
 #[macro_use]
@@ -33,6 +32,7 @@ mod utils;
 pub use append_only_zks::{Azks, AzksParallelismConfig, AzksParallelismOption};
 pub use directory::Directory;
 pub use helper_structs::EpochHash;
+pub use storage::ecvrf::VRFKeyStorage;
 pub use verify::{
     HistoryVerificationParams, history::HistoryParams, key_history_verify, lookup_verify,
 };

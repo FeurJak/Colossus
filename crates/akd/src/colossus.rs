@@ -1,14 +1,12 @@
 //! Defines the Colossus configuration
-
 use super::{
-    AkdLabel, AkdValue, AzksValue, AzksValueWithEpoch, DomainLabel, NodeLabel, VersionFreshness,
+    AkdLabel, AkdValue, AzksValue, AzksValueWithEpoch, Configuration, NodeLabel, VersionFreshness,
+    configuration::{DomainLabel, NamedConfiguration},
+    hash::{DIGEST_BYTES, Digest},
+    i2osp_array,
 };
-use crate::configuration::Configuration;
-use crate::hash::{DIGEST_BYTES, Digest};
-use colossus_common::utils::i2osp_array;
-use core::marker::PhantomData;
-
 use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 /// An experimental configuration
 #[derive(Clone)]
@@ -21,13 +19,15 @@ impl<L: DomainLabel> ColossusConfiguration<L> {
     /// Used by the client to supply a commitment nonce and value to reconstruct the commitment, via:
     /// commitment = H(i2osp_array(value), i2osp_array(nonce))
     fn generate_commitment_from_nonce_client(value: &crate::AkdValue, nonce: &[u8]) -> AzksValue {
-        AzksValue(<Self as Configuration>::hash(&[i2osp_array(value), i2osp_array(nonce)].concat()))
+        AzksValue(<Self as Configuration>::hash(
+            &[i2osp_array(value), i2osp_array(nonce)].concat(),
+        ))
     }
 }
 
 impl<L: DomainLabel> Configuration for ColossusConfiguration<L> {
-    fn hash(item: &[u8]) -> crate::hash::Digest {
-        // Hash(domain label || item)
+    fn hash(item: &[u8]) -> Digest {
+        //Hash(domain label || item)
         let mut hasher = blake3::Hasher::new();
         hasher.update(L::domain_label());
         hasher.update(item);
@@ -152,7 +152,7 @@ impl<L: DomainLabel> Configuration for ColossusConfiguration<L> {
     }
 }
 
-impl<L: DomainLabel> super::NamedConfiguration for ColossusConfiguration<L> {
+impl<L: DomainLabel> NamedConfiguration for ColossusConfiguration<L> {
     fn name() -> &'static str {
         "colossus"
     }

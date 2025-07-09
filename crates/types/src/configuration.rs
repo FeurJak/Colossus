@@ -1,10 +1,8 @@
 //! Defines the configuration trait for customizing the directory's cryptographic operations
-pub(crate) mod colossus;
 use crate::hash::Digest;
 use crate::{AkdLabel, AkdValue, AzksValue, AzksValueWithEpoch, NodeLabel, VersionFreshness};
 
 use alloc::vec::Vec;
-pub use colossus::ColossusConfiguration;
 
 /// Trait for specifying a domain separation label that should be specific to the
 /// application
@@ -102,31 +100,4 @@ pub trait Configuration: Clone + Send + Sync + 'static {
 pub trait NamedConfiguration: Configuration {
     /// The name of the configuration
     fn name() -> &'static str;
-}
-
-/// Macro used for running tests with different configurations
-/// NOTE(new_config): When adding new configurations, add them here as well
-#[macro_export]
-macro_rules! test_config_sync {
-    ( $x:ident ) => {
-        paste::paste! {
-            #[test]
-            fn [<$x _ colossus_config>]() {
-                $x::<$crate::configuration::ColossusConfiguration<$crate::configuration::ExampleLabel>>()
-            }
-        }
-    };
-}
-
-/// Macro used for running tests with different configurations
-#[macro_export]
-macro_rules! test_config {
-    ( $x:ident ) => {
-        paste::paste! {
-            #[tokio::test]
-            async fn [<$x _ colossus_config>]() -> Result<(), AkdError> {
-                $x::<$crate::configuration::ColossusConfiguration<$crate::configuration::ExampleLabel>>().await
-            }
-        }
-    };
 }

@@ -493,7 +493,9 @@ impl Azks {
 
         // Phase 3: Update the hash of the current node and return it along with
         // the number of nodes inserted.
-        current_node.update_hash::<TC, _>(storage, NodeHashingMode::from(insert_mode)).await?;
+        current_node
+            .update_hash::<TC, _>(storage, NodeHashingMode::from(insert_mode))
+            .await?;
 
         Ok((current_node, is_new, num_inserted))
     }
@@ -791,8 +793,10 @@ impl Azks {
                 .await?;
         let longest_prefix = lcp_node.label;
 
-        let empty_azks_element =
-            AzksElement { label: TC::empty_label(), value: TC::empty_node_hash() };
+        let empty_azks_element = AzksElement {
+            label: TC::empty_label(),
+            value: TC::empty_node_hash(),
+        };
 
         let mut longest_prefix_children = [empty_azks_element; ARITY];
         for (i, dir) in [Direction::Left, Direction::Right].iter().enumerate() {
@@ -887,7 +891,10 @@ impl Azks {
             )
             .await?;
             info!("Generated audit proof for {} -> {}", ep, ep + 1);
-            proofs.push(SingleAppendOnlyProof { inserted: leaves, unchanged_nodes: unchanged });
+            proofs.push(SingleAppendOnlyProof {
+                inserted: leaves,
+                unchanged_nodes: unchanged,
+            });
             epochs.push(ep);
         }
 
@@ -1253,7 +1260,14 @@ impl Azks {
             curr_node.hash
         };
 
-        Ok((curr_node.label, MembershipProof { label: curr_node.label, hash_val, sibling_proofs }))
+        Ok((
+            curr_node.label,
+            MembershipProof {
+                label: curr_node.label,
+                hash_val,
+                sibling_proofs,
+            },
+        ))
     }
 }
 
@@ -1262,14 +1276,14 @@ type AppendOnlyHelper = (Vec<AzksElement>, Vec<AzksElement>);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::traits::StorageUtil;
     use crate::storage::types::DbRecord;
     use crate::test_config;
     use crate::tree_node::TreeNodeWithPreviousValue;
-    use crate::utils::byte_arr_from_u64;
     use crate::{
         auditor::audit_verify,
+        byte_arr_from_u64,
         storage::memory::AsyncInMemoryDatabase,
+        storage::traits::StorageUtil,
         verify::{verify_membership_for_tests_only, verify_nonmembership_for_tests_only},
     };
     use itertools::Itertools;
@@ -1635,9 +1649,18 @@ mod tests {
 
         // Preload nodes to populate storage manager cache
         let azks_element_set = AzksElementSet::from(vec![
-            AzksElement { label: root_label, value: AzksValue(EMPTY_DIGEST) },
-            AzksElement { label: left_label, value: AzksValue(EMPTY_DIGEST) },
-            AzksElement { label: right_label, value: AzksValue(EMPTY_DIGEST) },
+            AzksElement {
+                label: root_label,
+                value: AzksValue(EMPTY_DIGEST),
+            },
+            AzksElement {
+                label: left_label,
+                value: AzksValue(EMPTY_DIGEST),
+            },
+            AzksElement {
+                label: right_label,
+                value: AzksValue(EMPTY_DIGEST),
+            },
         ]);
         let expected_preload_count = 3u64;
         let actual_preload_count = azks

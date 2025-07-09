@@ -1,11 +1,10 @@
 //! Forked Code from Meta Platforms AKD repository: https://github.com/facebook/akd
 //! This module implements traits for managing ECVRF, mainly pertaining to storage
 //! of public and private keys
-use super::{Output, Proof, VRFExpandedPrivateKey, VRFPrivateKey, VRFPublicKey, VrfError};
-use colossus_types::{
-    AkdLabel, AkdValue, NodeLabel, VersionFreshness, configuration::Configuration,
+use crate::{
+    AkdLabel, AkdValue, Configuration, NodeLabel, VersionFreshness, VrfError,
+    ecvrf::{Output, Proof, VRFExpandedPrivateKey, VRFPrivateKey, VRFPublicKey},
 };
-
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use async_trait::async_trait;
@@ -89,7 +88,7 @@ pub trait VRFKeyStorage: Clone + Sync + Send {
 
     /// Returns the tree nodelabel that corresponds to a vrf proof.
     async fn get_node_label_from_vrf_proof(&self, proof: Proof) -> NodeLabel {
-        let output: super::ecvrf_impl::Output = (&proof).into();
+        let output: Output = (&proof).into();
         NodeLabel::new(output.to_truncated_bytes(), 256)
     }
 

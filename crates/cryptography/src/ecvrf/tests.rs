@@ -63,7 +63,10 @@ where
     for<'a> P: From<&'a S>,
 {
     fn from(private_key: S) -> Self {
-        KeyPair { public_key: (&private_key).into(), private_key }
+        KeyPair {
+            public_key: (&private_key).into(),
+            private_key,
+        }
     }
 }
 
@@ -95,7 +98,7 @@ where
 
 macro_rules! to_string {
     ($e:expr) => {
-        format!("{}", ::hex::encode($e.to_bytes().as_ref()))
+        format!("{}", ::hex::encode($e.to_bytes()))
     };
 }
 
@@ -180,9 +183,9 @@ fn test_expand_secret_key() {
     for tv in TESTVECTORS.iter() {
         let sk = from_string!(VRFPrivateKey, tv.SK);
         let esk = VRFExpandedPrivateKey::from(&sk);
-        let pk = VRFPublicKey::try_from(&sk).unwrap();
-        assert_eq!(tv.PK, to_string!(pk));
-        assert_eq!(tv.x, to_string!(esk.key));
+        let pk = VRFPublicKey::try_from(&sk).unwrap().to_bytes();
+        assert_eq!(tv.PK, format!("{}", ::hex::encode(pk)));
+        assert_eq!(tv.x, format!("{}", ::hex::encode(esk.key.to_bytes())));
     }
 }
 
@@ -250,7 +253,9 @@ fn test_prove() {
 fn test_verify() {
     for tv in TESTVECTORS.iter() {
         assert!(
-            from_string!(VRFPublicKey, tv.PK).verify(&from_string!(Proof, tv.pi), tv.alpha).is_ok()
+            from_string!(VRFPublicKey, tv.PK)
+                .verify(&from_string!(Proof, tv.pi), tv.alpha)
+                .is_ok()
         );
     }
 }

@@ -2,6 +2,7 @@
 //! to manage interactions with the data layer to optimize things like caching and
 //! transaction management
 
+use crate::StorageError;
 use crate::log::debug;
 use crate::log::info;
 use crate::storage::cache::TimedCache;
@@ -12,7 +13,6 @@ use crate::storage::transaction::Transaction;
 use crate::storage::types::DbRecord;
 use crate::storage::types::KeyData;
 use crate::storage::types::ValueState;
-use colossus_errors::StorageError;
 use colossus_types::{AkdLabel, AkdValue};
 
 use std::collections::HashMap;
@@ -114,8 +114,11 @@ impl<Db: Database> StorageManager<Db> {
 
         self.transaction.log_metrics();
 
-        let snapshot =
-            self.metrics.iter().map(|metric| metric.swap(0, Ordering::Relaxed)).collect::<Vec<_>>();
+        let snapshot = self
+            .metrics
+            .iter()
+            .map(|metric| metric.swap(0, Ordering::Relaxed))
+            .collect::<Vec<_>>();
 
         let msg = format!(
             "
@@ -267,7 +270,8 @@ impl<Db: Database> StorageManager<Db> {
         }
 
         // Write to the database
-        self.tic_toc(METRIC_WRITE_TIME, self.db.batch_set(records, DbSetState::General)).await?;
+        self.tic_toc(METRIC_WRITE_TIME, self.db.batch_set(records, DbSetState::General))
+            .await?;
         self.increment_metric(METRIC_BATCH_SET);
         Ok(())
     }
@@ -486,7 +490,9 @@ impl<Db: Database> StorageManager<Db> {
                 map.insert(transaction_record.epoch, transaction_record);
             }
 
-            return Ok(KeyData { states: map.into_values().collect::<Vec<_>>() });
+            return Ok(KeyData {
+                states: map.into_values().collect::<Vec<_>>(),
+            });
         }
 
         if let Some(data) = maybe_db_data {

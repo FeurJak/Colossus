@@ -7,10 +7,10 @@ use crate::storage::types::KeyData;
 use crate::tree_node::TreeNodeWithPreviousValue;
 use crate::{
     AkdError, AkdLabel, AkdValue, Azks, Configuration, DirectoryError, EpochHash, HistoryParams,
-    HistoryVerificationParams, NodeLabel, StorageError,
+    HistoryVerificationParams, NodeLabel, StorageError, VRFKeyStorage,
     auditor::audit_verify,
     directory::{Directory, PublishCorruption, ReadOnlyDirectory},
-    ecvrf::{HardCodedAkdVRF, VRFKeyStorage},
+    ecvrf::HardCodedAkdVRF,
     key_history_verify, lookup_verify,
     storage::{
         manager::StorageManager, memory::AsyncInMemoryDatabase, traits::Database, types::DbRecord,

@@ -10,7 +10,6 @@ repository = { workspace = true }
 
 
 [dependencies]
-colossus-errors = { workspace = true }
 colossus-types = { workspace = true }
 
 curve25519-dalek = { workspace = true }
@@ -32,6 +31,9 @@ blake3 = { workspace = true }
 num = { workspace = true }
 num-complex = { workspace = true }
 sha3 = { workspace = true }
+cosmian_crypto_core = { workspace = true }
+ml-kem = { workspace = true }
+tiny-keccak = { workspace = true }
 
 [dev-dependencies]
 bincode = "1"

@@ -148,7 +148,11 @@ impl TreeNodeWithPreviousValue {
     /// previous value is None. This is useful for the first
     /// time a node appears in the directory data layer.
     pub(crate) fn from_tree_node(node: TreeNode) -> Self {
-        Self { label: node.label, latest_node: node, previous_node: None }
+        Self {
+            label: node.label,
+            latest_node: node,
+            previous_node: None,
+        }
     }
 
     pub(crate) async fn write_to_storage<S: Database>(
@@ -525,7 +529,7 @@ mod tests {
 
     use super::*;
     use crate::NodeLabel;
-    use crate::utils::byte_arr_from_u64;
+    use crate::byte_arr_from_u64;
     type InMemoryDb = crate::storage::memory::AsyncInMemoryDatabase;
     use crate::storage::manager::StorageManager;
     use crate::test_config;

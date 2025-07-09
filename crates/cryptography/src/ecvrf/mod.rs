@@ -17,34 +17,17 @@
 //! Adapted from Diem's NextGen Crypto module available [here](https://github.com/diem/diem/blob/502936fbd59e35276e2cf455532b143796d68a16/crypto/nextgen_crypto/src/vrf/ecvrf.rs)
 
 mod ecvrf_impl;
-mod traits;
 // export the functionality we want visible
 pub use crate::ecvrf::ecvrf_impl::{
     Output, Proof, VRFExpandedPrivateKey, VRFPrivateKey, VRFPublicKey,
 };
-pub use crate::ecvrf::traits::VRFKeyStorage;
-use alloc::boxed::Box;
-use alloc::string::ToString;
-use alloc::vec::Vec;
-
-use colossus_errors::VrfError;
+use colossus_types::VrfError;
 
 #[cfg(test)]
 mod tests;
 
-/// This is a version of VRFKeyStorage for testing purposes, which uses the example from the VRF crate.
-///
-/// const KEY_MATERIAL: &str = "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721";
 #[derive(Clone)]
 pub struct HardCodedAkdVRF;
 
 unsafe impl Sync for HardCodedAkdVRF {}
 unsafe impl Send for HardCodedAkdVRF {}
-
-#[async_trait::async_trait]
-impl VRFKeyStorage for HardCodedAkdVRF {
-    async fn retrieve(&self) -> Result<Vec<u8>, VrfError> {
-        hex::decode("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721")
-            .map_err(|hex_err| VrfError::PublicKey(hex_err.to_string()))
-    }
-}

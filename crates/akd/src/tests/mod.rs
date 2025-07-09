@@ -1,6 +1,6 @@
 //! Forked Code from Meta Platforms AKD repository: https://github.com/facebook/akd
 //! Contains the tests for the high-level API (directory, auditor, client)
-
+mod test_config_node_labels;
 mod test_core_protocol;
 mod test_errors;
 mod test_preloads;
@@ -65,7 +65,8 @@ mockall::mock! {
 fn setup_mocked_db(db: &mut MockLocalDatabase, test_db: &AsyncInMemoryDatabase) {
     // ===== Set ===== //
     let tmp_db = test_db.clone();
-    db.expect_set().returning(move |record| futures::executor::block_on(tmp_db.set(record)));
+    db.expect_set()
+        .returning(move |record| futures::executor::block_on(tmp_db.set(record)));
 
     // ===== Batch Set ===== //
     let tmp_db = test_db.clone();

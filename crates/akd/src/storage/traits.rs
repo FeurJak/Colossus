@@ -1,7 +1,7 @@
 ///! Forked from Meta Platforms AKD repository: https://github.com/facebook/akd (c)
 use super::types::{DbRecord, StorageType};
+use crate::StorageError;
 use async_trait::async_trait;
-use colossus_errors::StorageError;
 use colossus_types::{AkdLabel, AkdValue};
 use serde::{Serialize, de::DeserializeOwned};
 use std::collections::HashMap;

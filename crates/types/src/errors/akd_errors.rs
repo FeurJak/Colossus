@@ -2,8 +2,8 @@
 //! Errors for various data structure operations.
 use core::fmt;
 
-use colossus_types::Direction;
-use colossus_types::node_label::NodeLabel;
+use crate::Direction;
+use crate::node_label::NodeLabel;
 
 /// A error related to verifiable random functions
 #[derive(Debug, Eq, PartialEq)]

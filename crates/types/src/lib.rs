@@ -6,22 +6,25 @@
 //! 3. Audit (append-only)
 
 pub mod configuration;
+pub mod data_struct;
+pub mod errors;
 pub mod hash;
 pub mod helpers;
 pub mod node_label;
+pub mod policy;
 pub mod proto;
 
 use colossus_common::ARITY;
+pub use errors::*;
+pub use hash::*;
 use helpers::serde_helpers::{
     azks_value_hex_deserialize, azks_value_hex_serialize, bytes_deserialize_hex,
     bytes_serialize_hex,
 };
+pub use node_label::*;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::cmp::{Ord, Ordering, PartialOrd};
-
-pub use hash::*;
-pub use node_label::*;
 
 extern crate alloc;
 // ============================================

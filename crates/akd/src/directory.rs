@@ -2,7 +2,7 @@
 //! Implementation of an auditable key directory
 
 use crate::append_only_zks::{Azks, AzksParallelismConfig, InsertMode};
-use crate::ecvrf::{VRFKeyStorage, VRFPublicKey};
+use crate::ecvrf::VRFPublicKey;
 use crate::helper_structs::LookupInfo;
 use crate::log::{error, info};
 use crate::storage::manager::StorageManager;
@@ -11,7 +11,7 @@ use crate::storage::types::{DbRecord, ValueState, ValueStateRetrievalFlag};
 use crate::{AkdError, DirectoryError, StorageError};
 use crate::{
     AkdLabel, AkdValue, AppendOnlyProof, AzksElement, Digest, EpochHash, HistoryProof, LookupProof,
-    UpdateProof,
+    UpdateProof, VRFKeyStorage,
 };
 
 use crate::Configuration;
@@ -299,8 +299,10 @@ where
         let current_version = lookup_info.value_state.version;
         let commitment_key = self.derive_commitment_key().await?;
         let plaintext_value = lookup_info.value_state.value;
-        let existence_vrf =
-            self.vrf.get_label_proof::<TC>(label, VersionFreshness::Fresh, current_version).await?;
+        let existence_vrf = self
+            .vrf
+            .get_label_proof::<TC>(label, VersionFreshness::Fresh, current_version)
+            .await?;
         let commitment_label = self.vrf.get_node_label_from_vrf_proof(existence_vrf).await;
         let lookup_proof = LookupProof {
             epoch: lookup_info.value_state.epoch,
@@ -385,14 +387,18 @@ where
         // added but the database is in the middle of an update
         let version = latest_st.version;
         let marker_version = 1 << get_marker_version(version);
-        let existent_label =
-            self.vrf.get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version).await?;
+        let existent_label = self
+            .vrf
+            .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version)
+            .await?;
         let marker_label = self
             .vrf
             .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, marker_version)
             .await?;
-        let non_existent_label =
-            self.vrf.get_node_label::<TC>(akd_label, VersionFreshness::Stale, version).await?;
+        let non_existent_label = self
+            .vrf
+            .get_node_label::<TC>(akd_label, VersionFreshness::Stale, version)
+            .await?;
         Ok(LookupInfo {
             value_state: latest_st.clone(),
             marker_version,
@@ -519,10 +525,14 @@ where
         let mut existence_of_past_marker_proofs = vec![];
 
         for version in past_marker_versions {
-            let node_label =
-                self.vrf.get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version).await?;
-            let existence_vrf =
-                self.vrf.get_label_proof::<TC>(akd_label, VersionFreshness::Fresh, version).await?;
+            let node_label = self
+                .vrf
+                .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version)
+                .await?;
+            let existence_vrf = self
+                .vrf
+                .get_label_proof::<TC>(akd_label, VersionFreshness::Fresh, version)
+                .await?;
             past_marker_vrf_proofs.push(existence_vrf.to_bytes().to_vec());
             existence_of_past_marker_proofs
                 .push(current_azks.get_membership_proof::<TC, _>(&self.storage, node_label).await?);
@@ -532,10 +542,14 @@ where
         let mut non_existence_of_future_marker_proofs = vec![];
 
         for version in future_marker_versions {
-            let node_label =
-                self.vrf.get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version).await?;
+            let node_label = self
+                .vrf
+                .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version)
+                .await?;
             non_existence_of_future_marker_proofs.push(
-                current_azks.get_non_membership_proof::<TC, _>(&self.storage, node_label).await?,
+                current_azks
+                    .get_non_membership_proof::<TC, _>(&self.storage, node_label)
+                    .await?,
             );
             future_marker_vrf_proofs.push(
                 self.vrf
@@ -702,12 +716,16 @@ where
         let value = &user_state.value;
         let version = user_state.version;
 
-        let label_at_ep =
-            self.vrf.get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version).await?;
+        let label_at_ep = self
+            .vrf
+            .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version)
+            .await?;
 
         let current_azks = self.retrieve_azks().await?;
-        let existence_vrf =
-            self.vrf.get_label_proof::<TC>(akd_label, VersionFreshness::Fresh, version).await?;
+        let existence_vrf = self
+            .vrf
+            .get_label_proof::<TC>(akd_label, VersionFreshness::Fresh, version)
+            .await?;
         let existence_vrf_proof = existence_vrf.to_bytes().to_vec();
         let existence_label = self.vrf.get_node_label_from_vrf_proof(existence_vrf).await;
         let existence_proof =
@@ -720,7 +738,9 @@ where
                 .get_node_label::<TC>(akd_label, VersionFreshness::Stale, version - 1)
                 .await?;
             previous_version_proof = Option::Some(
-                current_azks.get_membership_proof::<TC, _>(&self.storage, prev_label_at_ep).await?,
+                current_azks
+                    .get_membership_proof::<TC, _>(&self.storage, prev_label_at_ep)
+                    .await?,
             );
             previous_version_vrf_proof = Option::Some(
                 self.vrf
@@ -899,7 +919,10 @@ impl<TC: Configuration, S: Database + 'static, V: VRFKeyStorage> Directory<TC, S
                 .get_node_label::<TC>(akd_label, VersionFreshness::Stale, version_number)
                 .await?;
             let stale_value_to_add = TC::stale_azks_value();
-            update_set.push(AzksElement { label: stale_label, value: stale_value_to_add })
+            update_set.push(AzksElement {
+                label: stale_label,
+                value: stale_value_to_add,
+            })
         };
 
         let mut user_data_update_set = Vec::<ValueState>::new();
@@ -985,11 +1008,16 @@ impl<TC: Configuration, S: Database + 'static, V: VRFKeyStorage> Directory<TC, S
                                 })
                             }
                         },
-                        _ => update_set
-                            .push(AzksElement { label: stale_label, value: stale_value_to_add }),
+                        _ => update_set.push(AzksElement {
+                            label: stale_label,
+                            value: stale_value_to_add,
+                        }),
                     };
 
-                    update_set.push(AzksElement { label: fresh_label, value: fresh_value_to_add });
+                    update_set.push(AzksElement {
+                        label: fresh_label,
+                        value: fresh_value_to_add,
+                    });
                     let new_state =
                         ValueState::new(akd_label, val, latest_version, fresh_label, next_epoch);
                     user_data_update_set.push(new_state);

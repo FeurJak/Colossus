@@ -7,11 +7,11 @@ use rand::{SeedableRng, rngs::StdRng};
 
 use crate::{
     AkdError, AkdLabel, AkdValue, AppendOnlyProof, EpochHash, HistoryParams,
-    HistoryVerificationParams, VerifyResult,
+    HistoryVerificationParams, VRFKeyStorage, VerifyResult,
     append_only_zks::AzksParallelismConfig,
     auditor::{audit_verify, verify_consecutive_append_only},
     directory::Directory,
-    ecvrf::{HardCodedAkdVRF, VRFKeyStorage},
+    ecvrf::HardCodedAkdVRF,
     key_history_verify, lookup_verify,
     storage::{manager::StorageManager, memory::AsyncInMemoryDatabase},
     test_config,
@@ -134,8 +134,16 @@ async fn test_small_key_history<TC: Configuration>() -> Result<(), AkdError> {
     assert_eq!(
         result,
         vec![
-            VerifyResult { epoch: 2, version: 2, value: AkdValue::from("world2") },
-            VerifyResult { epoch: 1, version: 1, value: AkdValue::from("world") },
+            VerifyResult {
+                epoch: 2,
+                version: 2,
+                value: AkdValue::from("world2")
+            },
+            VerifyResult {
+                epoch: 1,
+                version: 1,
+                value: AkdValue::from("world")
+            },
         ]
     );
 
@@ -176,7 +184,8 @@ async fn test_simple_key_history<TC: Configuration>() -> Result<(), AkdError> {
     ])
     .await?;
     // Epoch 5: Updated "hello" to version 4
-    akd.publish(vec![(AkdLabel::from("hello"), AkdValue::from("world_updated"))]).await?;
+    akd.publish(vec![(AkdLabel::from("hello"), AkdValue::from("world_updated"))])
+        .await?;
     // Epoch 6: Update the values for "hello3" and "hello4"
     // both two version 2.
     akd.publish(vec![
@@ -403,7 +412,8 @@ async fn test_limited_key_history<TC: Configuration>() -> Result<(), AkdError> {
     .await?;
 
     // epoch 5
-    akd.publish(vec![(AkdLabel::from("hello"), AkdValue::from("world_updated"))]).await?;
+    akd.publish(vec![(AkdLabel::from("hello"), AkdValue::from("world_updated"))])
+        .await?;
 
     // epoch 6
     akd.publish(vec![
@@ -438,7 +448,9 @@ async fn test_limited_key_history<TC: Configuration>() -> Result<(), AkdError> {
         current_epoch,
         AkdLabel::from("hello"),
         history_proof,
-        HistoryVerificationParams::Default { history_params: HistoryParams::MostRecent(1) },
+        HistoryVerificationParams::Default {
+            history_params: HistoryParams::MostRecent(1),
+        },
     )?;
 
     // Take the top 3 results, and check that we're getting the right epoch updates
@@ -456,7 +468,9 @@ async fn test_limited_key_history<TC: Configuration>() -> Result<(), AkdError> {
         current_epoch,
         AkdLabel::from("hello"),
         history_proof,
-        HistoryVerificationParams::Default { history_params: HistoryParams::MostRecent(3) },
+        HistoryVerificationParams::Default {
+            history_params: HistoryParams::MostRecent(3),
+        },
     )?;
 
     Ok(())
@@ -507,7 +521,8 @@ async fn test_simple_audit<TC: Configuration>() -> Result<(), AkdError> {
     // Get the root hash after the fourth server publish
     let root_hash_4 = akd.get_epoch_hash().await?.1;
 
-    akd.publish(vec![(AkdLabel::from("hello"), AkdValue::from("world_updated"))]).await?;
+    akd.publish(vec![(AkdLabel::from("hello"), AkdValue::from("world_updated"))])
+        .await?;
 
     // Get the root hash after the fifth server publish
     let root_hash_5 = akd.get_epoch_hash().await?.1;
@@ -568,8 +583,10 @@ async fn test_simple_audit<TC: Configuration>() -> Result<(), AkdError> {
     // number of epochs as proofs
     let audit_proof_9 = akd.audit(1, 5).await?;
     let audit_proof_10 = akd.audit(4, 6).await?;
-    let invalid_audit_proof =
-        AppendOnlyProof { proofs: audit_proof_10.proofs, epochs: audit_proof_9.epochs };
+    let invalid_audit_proof = AppendOnlyProof {
+        proofs: audit_proof_10.proofs,
+        epochs: audit_proof_9.epochs,
+    };
     let invalid_audit_verification = audit_verify::<TC>(
         vec![root_hash_1, root_hash_2, root_hash_3, root_hash_4, root_hash_5],
         invalid_audit_proof,
@@ -646,7 +663,14 @@ async fn test_simple_lookup_for_small_tree<TC: Configuration>() -> Result<(), Ak
     )?;
 
     // check the two results to make sure they both verify
-    assert_eq!(akd_result, VerifyResult { epoch: 1, version: 1, value: AkdValue::from("hello10") },);
+    assert_eq!(
+        akd_result,
+        VerifyResult {
+            epoch: 1,
+            version: 1,
+            value: AkdValue::from("hello10")
+        },
+    );
 
     Ok(())
 }

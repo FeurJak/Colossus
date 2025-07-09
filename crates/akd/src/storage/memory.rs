@@ -7,8 +7,8 @@ use super::traits::{Database, Storable, StorageUtil};
 use super::types::{
     DbRecord, KeyData, StorageType, ValueState, ValueStateKey, ValueStateRetrievalFlag,
 };
+use crate::StorageError;
 use async_trait::async_trait;
-use colossus_errors::StorageError;
 use colossus_types::{AkdLabel, AkdValue};
 use dashmap::DashMap;
 use std::collections::HashMap;

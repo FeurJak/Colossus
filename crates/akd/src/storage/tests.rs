@@ -4,9 +4,9 @@
 use super::manager::StorageManager;
 use super::traits::Database;
 use super::types::*;
+use crate::StorageError;
+use crate::byte_arr_from_u64;
 use crate::tree_node::*;
-use crate::utils::byte_arr_from_u64;
-use colossus_errors::StorageError;
 use colossus_types::{AkdLabel, AkdValue, AzksValue, NodeLabel, hash::EMPTY_DIGEST};
 use rand::distr::Alphanumeric;
 use rand::{Rng, rng};

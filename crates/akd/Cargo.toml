@@ -12,7 +12,6 @@ repository = { workspace = true }
 [dependencies]
 colossus-cryptography = { workspace = true }
 colossus-common = { workspace = true }
-colossus-errors = { workspace = true }
 colossus-types = { workspace = true }
 
 async-recursion = {workspace = true}
@@ -34,6 +33,7 @@ colored = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
 protobuf = { workspace = true }
+blake3 = { workspace = true }
 
 [dev-dependencies]
 criterion = "0.6.0"

@@ -4,9 +4,14 @@ extern crate alloc;
 pub mod dsa;
 pub mod ecvrf;
 pub mod hash;
+pub mod kem;
+pub mod nike;
 pub mod rand;
 mod utils;
 mod word;
+
+pub use kem::mlkem::MlKem512 as MlKem;
+pub use nike::r25519::R25519 as ElGamal;
 
 // RE-EXPORTS
 // ================================================================================================
@@ -40,6 +45,9 @@ pub const ONE: Felt = Felt::ONE;
 
 /// Array of field elements representing word of ZEROs in the Miden base field.
 pub const EMPTY_WORD: Word = Word::new([ZERO; WORD_SIZE]);
+
+/// The length of the secret encapsulated by MLKEM.
+pub const SHARED_SECRET_LENGTH: usize = 32;
 
 // TRAITS
 // ================================================================================================

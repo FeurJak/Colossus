@@ -2,8 +2,8 @@
 //! A simple in-memory transaction object to minimize data-layer operations
 use super::traits::Storable;
 use super::types::{DbRecord, ValueState, ValueStateRetrievalFlag};
+use crate::StorageError;
 use crate::log::info;
-use colossus_errors::StorageError;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -237,9 +237,9 @@ impl Transaction {
 mod tests {
     use super::*;
     use crate::append_only_zks::*;
+    use crate::byte_arr_from_u64;
     use crate::storage::types::*;
     use crate::tree_node::*;
-    use crate::utils::byte_arr_from_u64;
     use colossus_types::node_label::*;
     use colossus_types::{AkdLabel, AkdValue, AzksValue};
     use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};

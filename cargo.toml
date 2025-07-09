@@ -2,7 +2,6 @@
 members = [
     "crates/akd",
     "crates/covercrypt",
-    "crates/errors",
     "crates/types",
     "crates/common",
     "crates/cryptography",
@@ -29,7 +28,6 @@ unused_qualifications = "warn"
 [workspace.dependencies]
 colossus-akd = { path = "crates/akd" }
 colossus-covercrypt = { path = "crates/covercrypt" }
-colossus-errors = { path = "crates/errors" }
 colossus-types = { path = "crates/types" }
 colossus-common = { path = "crates/common" }
 colossus-cryptography = { path = "crates/cryptography" }
@@ -38,6 +36,7 @@ cosmian_crypto_core = { version = "10.0.1", default-features = false, features =
   "ser",
   "sha3",
   "aes",
+  "curve25519",
 ] }
 elliptic-curve = { version = "0.13.8" }
 ml-kem = { version = "0.2.1", features = ["zeroize"] }
