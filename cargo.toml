@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "colossus-core",
+    "explorations/healthcare",
 
 ]
 resolver = "2"
