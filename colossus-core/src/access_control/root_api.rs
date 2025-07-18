@@ -29,10 +29,6 @@ impl Root {
         self.rng.lock().expect("poisoned mutex")
     }
 
-    /// Sets up the Covercrypt scheme.
-    ///
-    /// Generates a MSK and a MPK only holing broadcasting keys, and with a
-    /// tracing level of [`MIN_TRACING_LEVEL`](core::MIN_TRACING_LEVEL).
     pub fn setup(&self) -> Result<(RootAuthority, RootPublicKey), Error> {
         let mut rng = self.rng.lock().expect("Mutex lock failed!");
         let mut auth = RootAuthority::setup(MIN_TRACING_LEVEL, &mut *rng)?;
@@ -42,21 +38,6 @@ impl Root {
         Ok((auth, rpk))
     }
 
-    /// Updates the MSK according to its access structure. Returns the new
-    /// version of the MPK.
-    ///
-    /// Sets the MSK rights to the one defined by the access structure:
-    ///
-    /// - removes rights from the MSK that don't belong to the access structure
-    ///   along with their associated secrets;
-    ///
-    /// - adds the rights that don't belong yet to the MSK, generating new
-    ///   secrets.
-    ///
-    /// The new MPK holds the latest encryption key of each right of the access
-    /// structure.
-    // TODO: this function should be internalized and replaced by specialized
-    // functions.
     pub fn update_auth(&self, auth: &mut RootAuthority) -> Result<RootPublicKey, Error> {
         update_root_authority(
             &mut *self.rng.lock().expect("Mutex lock failed!"),
@@ -65,12 +46,6 @@ impl Root {
         )?;
         auth.rpk()
     }
-
-    /// Generates new secrets for each right a USK associated to the given
-    /// access policy would hold, updates the MSK and returns the new MPK.
-    ///
-    /// User keys need to be refreshed.
-    // TODO document error cases.
     pub fn rekey(
         &self,
         auth: &mut RootAuthority,
@@ -84,12 +59,6 @@ impl Root {
         auth.rpk()
     }
 
-    /// Removes from the master secret key all but the latest secret of each
-    /// right a USK associated to the given access policy would hold. Returns
-    /// the new MPK.
-    ///
-    /// This action is *irreversible*, and all user keys need to be refreshed.
-    // TODO document error cases.
     pub fn prune_master_secret_key(
         &self,
         auth: &mut RootAuthority,
@@ -99,11 +68,6 @@ impl Root {
         auth.rpk()
     }
 
-    /// Generates a USK associated to the given access policy.
-    ///
-    /// The new key is given the latest secret of each right in the
-    /// complementary space of its access policy.
-    // TODO document error cases.
     pub fn generate_user_secret_key(
         &self,
         auth: &mut RootAuthority,
@@ -115,19 +79,6 @@ impl Root {
             auth.access_structure.ap_to_usk_rights(ap)?,
         )
     }
-
-    /// Refreshes the USK with respect to the given MSK.
-    ///
-    /// The USK is given all missing secrets since the first secret hold by the
-    /// USK, for each right in the complementary space of its access
-    /// policy. Secrets hold by the USK but have been removed from the MSK are
-    /// removed.
-    ///
-    /// If `keep_old_secrets` is set to false, only the latest secret of each
-    /// right is kept instead.
-    ///
-    /// Updates the tracing level to match the one of the MSK if needed.
-    // TODO document error cases.
     pub fn refresh_usk(
         &self,
         auth: &mut RootAuthority,
@@ -136,9 +87,6 @@ impl Root {
     ) -> Result<(), Error> {
         refresh_usk(&mut *self.rng.lock().expect("Mutex lock failed!"), auth, usk, keep_old_secrets)
     }
-
-    /// Returns a new encapsulation with the same rights as the one given, along
-    /// with a freshly generated shared secret.
     pub fn recaps(
         &self,
         auth: &RootAuthority,

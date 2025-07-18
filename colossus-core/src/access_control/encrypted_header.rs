@@ -11,15 +11,12 @@ use cosmian_crypto_core::{
     SymmetricKey, XChaCha20Poly1305, kdf256,
 };
 
-/// Structure containing all data encrypted in an `EncryptedHeader`.
 #[derive(Debug, PartialEq, Eq)]
 pub struct CleartextHeader {
     pub secret: Secret<SHARED_SECRET_LENGTH>,
     pub metadata: Option<Vec<u8>>,
 }
 
-/// Encrypted header holding a `Covercrypt` encapsulation of a 256-byte secret, and metadata
-/// encrypted under the scheme AES256Gcm using a key derived from the encapsulated secret.
 #[derive(Debug, PartialEq)]
 pub struct EncryptedHeader {
     pub encapsulation: XEnc,
@@ -27,14 +24,6 @@ pub struct EncryptedHeader {
 }
 
 impl EncryptedHeader {
-    /// Generates a new encrypted header for a random secret and the given metadata.
-    /// Returns the encrypted header along with the secret.
-    ///
-    /// - `api`                  : API for root-authority
-    /// - `rpk`                 : root public key
-    /// - `ap`                  : access policy used for the encapsulation
-    /// - `header_metadata`     : additional data symmetrically encrypted in the header
-    /// - `authentication_data` : authentication data used in the DEM encryption
     pub fn generate(
         api: &Root,
         rpk: &RootPublicKey,
@@ -60,11 +49,6 @@ impl EncryptedHeader {
         Ok((secret, Self { encapsulation, encrypted_metadata }))
     }
 
-    /// Decrypts the header with the given user secret key.
-    ///
-    /// - `api`                  : `API for root-authority
-    /// - `usk`                 : `Covercrypt` user secret key
-    /// - `authentication_data` : authentication data used in the DEM encryption
     pub fn decrypt(
         &self,
         api: &Root,
@@ -175,10 +159,6 @@ mod serialization {
 
         let ap = AccessPolicy::parse("(DPT::MKG || DPT::FIN) && SEC::TOP").unwrap();
         let usk = api.generate_user_secret_key(&mut msk, &ap).unwrap();
-
-        //
-        // Simple ciphertext.
-        //
 
         let test_encrypted_header = |ap, metadata, authentication_data| {
             let (secret, encrypted_header) =

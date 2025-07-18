@@ -1,5 +1,5 @@
 [package]
-name = "example"
+name = "colossus-demo"
 version = "1.0.0-beta.1"
 description = ""
 authors = { workspace = true }

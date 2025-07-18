@@ -101,27 +101,22 @@ impl Serializable for AccessRightSecretKey {
 }
 
 impl AccessRightSecretKey {
-    /// Generates a new random right secret key cryptographically bound to the Covercrypt binding
-    /// point `h`.
     pub(super) fn random(rng: &mut impl CryptoRngCore) -> Result<Self, Error> {
         let sk = <ElGamal as Nike>::SecretKey::random(rng);
         let (dk, _) = MlKem::keygen(rng)?;
         Ok(Self { sk, dk })
     }
 
-    /// Generates the associated right public key.
     #[must_use]
     pub(super) fn cpk(&self, h: &<ElGamal as Nike>::PublicKey) -> AccessRightPublicKey {
         AccessRightPublicKey { h: h * &self.sk, ek: self.dk.ek() }
     }
 }
 
-/// Covercrypt tracing public key.
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct TracingPublicKey(pub LinkedList<<ElGamal as Nike>::PublicKey>);
 
 impl TracingPublicKey {
-    /// Returns the tracing level tracing of this key.
     pub(super) fn tracing_level(&self) -> usize {
         self.0.len() - 1
     }
@@ -189,11 +184,6 @@ impl RootAuthority {
         self.sk_access_rights.len()
     }
 
-    /// Returns the most recent access right secret key associated to each given access right.
-    ///
-    /// # Error
-    ///
-    /// Returns an error if some right is missing from the MSK.
     fn get_latest_access_right_sk<'a>(
         &'a self,
         rs: impl Iterator<Item = Right> + 'a,
@@ -206,7 +196,6 @@ impl RootAuthority {
                 .map(|(_, key)| (r, key))
         })
     }
-    /// Generates a new MPK holding the latest public information of each right in Omega.
     pub fn rpk(&self) -> Result<RootPublicKey, Error> {
         let h = self.binding_point();
         Ok(RootPublicKey {
@@ -227,8 +216,6 @@ impl RootAuthority {
             access_structure: self.access_structure.clone(),
         })
     }
-
-    /// Computes the signature of the given USK using the MSK.
     pub fn sign_access_rights(
         &self,
         user_id: &UserId,
@@ -239,8 +226,6 @@ impl RootAuthority {
             for marker in user_id.iter() {
                 kmac.update(&marker.serialize()?)
             }
-            // Subkeys ordering needs to be deterministic to allow deterministic
-            // signatures. This explains why a hash-map is not used in USK.
             for (access_right, sk_access_right) in access_rights.iter() {
                 kmac.update(access_right);
                 for subkey in sk_access_right.iter() {
@@ -348,7 +333,6 @@ impl RootAuthority {
 }
 
 impl RootAuthority {
-    /// Returns the current tracing level.
     pub(super) fn tracing_level(&self) -> usize {
         self.tracers.len() - 1
     }
@@ -357,13 +341,11 @@ impl RootAuthority {
         self.tracers.iter().map(|(_, Pi)| Pi * r).collect()
     }
 
-    /// Generates a new tracer. Returns the associated trap.
     fn _increase_tracing(&mut self, rng: &mut impl CryptoRngCore) -> Result<(), Error> {
         self.tracers.push_back(ElGamal::keygen(rng)?);
         Ok(())
     }
 
-    /// Drops the oldest tracer and returns it.
     fn _decrease_tracing(
         &mut self,
     ) -> Result<(<ElGamal as Nike>::SecretKey, <ElGamal as Nike>::PublicKey), Error> {
@@ -379,7 +361,6 @@ impl RootAuthority {
         }
     }
 
-    /// Set the level of the tracing secret key to the target level.
     pub fn _set_tracing_level(
         &mut self,
         rng: &mut impl CryptoRngCore,
@@ -397,35 +378,27 @@ impl RootAuthority {
         Ok(())
     }
 
-    /// Returns true if the given user ID is known.
     fn is_known(&self, id: &UserId) -> bool {
         self.users.contains(id)
     }
 
-    /// Adds the given user ID to the list of known users.
     fn add_user(&mut self, id: UserId) {
         self.users.insert(id);
     }
 
-    /// Removes the given user ID from the list of known users.
-    ///
-    /// Returns true if the user was in the list.
     fn del_user(&mut self, id: &UserId) -> bool {
         self.users.remove(id)
     }
 
-    /// Generates the associated tracing public key.
     #[must_use]
     pub(super) fn tpk(&self) -> TracingPublicKey {
         TracingPublicKey(self.tracers.iter().map(|(_, Pi)| Pi).cloned().collect())
     }
 
-    /// Returns the binding points.
     pub(super) fn binding_point(&self) -> <ElGamal as Nike>::PublicKey {
         (&self.sk).into()
     }
 
-    /// Generates a new ID and adds it to the list of known user IDs.
     fn generate_user_id(&mut self, rng: &mut impl CryptoRngCore) -> Result<UserId, Error> {
         if let Some((last_tracer, _)) = self.tracers.back() {
             // Generate all but the last marker at random.
@@ -454,7 +427,6 @@ impl RootAuthority {
         }
     }
 
-    /// Returns true if the given user ID is valid.
     fn _validate_user_id(&self, id: &UserId) -> bool {
         self.sk
             == id
@@ -464,13 +436,6 @@ impl RootAuthority {
                 .sum()
     }
 
-    /// If the tracing level of the user ID is not in sync with the one of the
-    /// MSK, generate a new ID with the correct tracing level and replace the
-    /// old ID by the new one in the MSK.
-    ///
-    /// # Error
-    ///
-    /// Returns an error if the ID is unknown.
     fn refresh_id(&mut self, rng: &mut impl CryptoRngCore, id: UserId) -> Result<UserId, Error> {
         if !self.is_known(&id) {
             Err(Error::Tracing("unknown user".to_string()))
@@ -480,10 +445,6 @@ impl RootAuthority {
             self.del_user(&id);
             Ok(new_id)
         } else {
-            // Since the integrity of the USK is checked, there is no need to
-            // validated the ID before returning it. This saves O(tracing-level)
-            // multiplications... but there is actually no way to locally check
-            // the caller actually checked the integrity first.
             Ok(id)
         }
     }
@@ -594,12 +555,6 @@ impl Serializable for RootAuthority {
     }
 }
 
-/// Covercrypt Public Key (PK).
-///
-/// It is composed of:
-/// - the tracing public key;
-/// - the public keys for each right in Omega;
-/// - the access structure.
 #[derive(Debug, PartialEq)]
 pub struct RootPublicKey {
     pub tpk: TracingPublicKey,
@@ -608,7 +563,6 @@ pub struct RootPublicKey {
 }
 
 impl RootPublicKey {
-    /// Returns the tracing level of this MPK.
     #[inline(always)]
     pub fn tracing_level(&self) -> usize {
         self.tpk.tracing_level()
@@ -618,8 +572,6 @@ impl RootPublicKey {
         self.pk_access_rights.len()
     }
 
-    /// Generates traps for the given scalar.
-    // TODO: find a better concept.
     pub(crate) fn set_traps(
         &self,
         r: &<ElGamal as Nike>::SecretKey,
@@ -627,8 +579,6 @@ impl RootPublicKey {
         self.tpk.0.iter().map(|Pi| Pi * r).collect()
     }
 
-    /// Returns the public access-right keys associated with the given rights in this public key,
-    /// alongside a boolean value that is true if all of them are hybridized.
     pub fn select_access_right_keys(
         &self,
         targets: &HashSet<Right>,
@@ -653,10 +603,7 @@ impl RootPublicKey {
         encryption_set: &HashSet<Right>,
     ) -> Result<(Secret<SHARED_SECRET_LENGTH>, XEnc), Error> {
         let mut access_rights = self.select_access_right_keys(encryption_set)?;
-        // Shuffling must be performed *before* generating the encapsulations since
-        // rights are hashed in-order. If shuffling is performed after generating
-        // the encapsulations, there would be no way to know in which order to
-        // perform hashing upon decapsulation.
+
         shuffle(&mut access_rights, rng);
 
         let rng_secret = Secret::random(rng);
@@ -771,7 +718,6 @@ pub struct UserSecretKey {
 }
 
 impl UserSecretKey {
-    /// Returns the tracing level of this user secret key.
     pub(crate) fn tracing_level(&self) -> usize {
         self.id.tracing_level()
     }
@@ -825,15 +771,10 @@ impl UserSecretKey {
             secret
         };
 
-        // Shuffle encapsulation to counter timing attacks attempting to determine
-        // which right was used to open an encapsulation.
         let mut encs = cap.encapsulations.0.iter().collect::<Vec<_>>();
         shuffle(&mut encs, rng);
 
-        // Loop order matters: this ordering is faster.
         for mut revision in self.sk_access_rights.revisions() {
-            // Shuffle secrets to counter timing attacks attempting to determine
-            // whether successive encapsulations target the same user right.
             shuffle(&mut revision, rng);
             for (E, F) in &encs {
                 for (_, secret) in &revision {
@@ -981,11 +922,6 @@ pub fn update_root_authority(
     Ok(())
 }
 
-/// Removes old keys associated all coordinates in the given set from the MSK.
-///
-/// # Safety
-///
-/// This operation *permanently* deletes old keys, this is thus not reversible!
 pub fn prune(root: &mut RootAuthority, coordinates: &HashSet<Right>) {
     for coordinate in coordinates {
         root.sk_access_rights.keep(coordinate, 1);
@@ -1023,21 +959,13 @@ fn refresh_access_rights(
                 let mut sk_usk = sk_access_right.into_iter();
                 let first_secret = sk_usk.next()?;
 
-                // Add the most recent secrets from the MSK that do not belong
-                // to the USK at the front of the updated chain (cf Invariant.1)
                 for (_, root_secret) in sk_root.by_ref() {
                     if root_secret == &first_secret {
                         break;
                     }
                     updated_chain.push_back(root_secret.clone());
                 }
-
-                // Push the first USK secret since it was consumed from the USK
-                // chain iterator.
                 updated_chain.push_back(first_secret);
-
-                // Push the secrets already stored in the USK that also belong
-                // to the MSK keypairs.
                 for usk_access_right in sk_usk {
                     if let Some((_, root_secret)) = sk_root.next() {
                         if root_secret == &usk_access_right {
@@ -1045,7 +973,6 @@ fn refresh_access_rights(
                             continue;
                         }
                     }
-                    // No more shared secret after the first divergence (cf Invariant.2).
                     break;
                 }
                 Some((access_right, updated_chain))
@@ -1097,28 +1024,13 @@ impl UserId {
 mod tests {
     use super::*;
     use crate::{
-        access_control::{
-            Root,
-            cryptography::traits::{KemAc, PkeAc},
-            test_utils::gen_auth,
-        },
+        access_control::{Root, cryptography::traits::KemAc, test_utils::gen_auth},
         policy::AccessPolicy,
     };
     use cosmian_crypto_core::{
         CsRng, bytes_ser_de::test_serialization, reexport::rand_core::SeedableRng,
     };
     use std::collections::HashMap;
-    // use crate::{
-    //     AccessPolicy,
-    //     abe_policy::{AttributeStatus, EncryptionHint},
-    //     api::Covercrypt,
-    //     core::{
-    //         MIN_TRACING_LEVEL,
-    //         primitives::{encaps, rekey, setup, update_msk, usk_keygen},
-    //     },
-    //     test_utils::cc_keygen,
-    //     traits::KemAc,
-    // };
 
     #[test]
     fn test_serializations() {
@@ -1185,9 +1097,7 @@ mod test {
     };
     use cosmian_crypto_core::{CsRng, XChaCha20Poly1305, reexport::rand_core::SeedableRng};
     use std::collections::{HashMap, HashSet};
-    /// This test asserts that it is possible to encapsulate a key for a given
-    /// coordinate and that different users which key is associated with this
-    /// coordinate can open the resulting encapsulation.
+
     #[test]
     fn test_encapsulation() {
         let mut rng = CsRng::from_entropy();
@@ -1225,9 +1135,6 @@ mod test {
         assert_eq!(None, usk.decapsulate(&mut rng, &enc).unwrap().as_ref());
     }
 
-    /// This test verifies that the correct number of keys is added/removed upon
-    /// updating the MSK. It also check that the correct number of coordinate keys
-    /// are given to the MPK, and removed upon deprecation.
     #[test]
     fn test_update() {
         let mut rng = CsRng::from_entropy();
@@ -1240,8 +1147,6 @@ mod test {
         assert_eq!(rpk.tpk.tracing_level(), MIN_TRACING_LEVEL);
         assert_eq!(rpk.count(), 0);
 
-        // Add 30 new random coordinates and verifies the correct number of
-        // coordinate keys is added to the MSK (and the MPK).
         let mut coordinates = (0..30)
             .map(|_| (Right::random(&mut rng), AttributeStatus::EncryptDecrypt))
             .collect::<HashMap<_, _>>();
@@ -1251,10 +1156,6 @@ mod test {
         let rpk = auth.rpk().unwrap();
         assert_eq!(rpk.count(), 30);
 
-        // Deprecate half coordinates.
-        //
-        // Be careful to iterate on the original structure not to change the
-        // iteration order. Otherwise the next test may fail.
         coordinates.iter_mut().enumerate().for_each(|(i, (_, status))| {
             if i % 2 == 0 {
                 *status = AttributeStatus::DecryptOnly;
@@ -1265,7 +1166,6 @@ mod test {
         let rpk = auth.rpk().unwrap();
         assert_eq!(rpk.count(), 15);
 
-        // Keep only 10 coordinates.
         let coordinates = coordinates.into_iter().take(10).collect::<HashMap<_, _>>();
         update_root_authority(&mut rng, &mut auth, coordinates).unwrap();
         assert_eq!(auth.count(), 10);
@@ -1273,9 +1173,6 @@ mod test {
         assert_eq!(rpk.count(), 5);
     }
 
-    /// This test asserts that re-keyed coordinates allow creating encapsulations
-    /// using the new keys: old USK cannot open the new ones and new USK cannot open
-    /// the old ones.
     #[test]
     fn test_rekey() {
         let mut rng = CsRng::from_entropy();
@@ -1308,38 +1205,31 @@ mod test {
         assert_eq!(Some(old_key_2), usk_2.decapsulate(&mut rng, &old_enc_2).unwrap());
         assert_eq!(None, usk_2.decapsulate(&mut rng, &old_enc_1).unwrap());
 
-        // Re-key all space coordinates.
         rekey(&mut rng, &mut auth, universe).unwrap();
         let rpk = auth.rpk().unwrap();
 
         let (new_key_1, new_enc_1) = rpk.encapsulate(&mut rng, &subspace_1).unwrap();
         let (new_key_2, new_enc_2) = rpk.encapsulate(&mut rng, &subspace_2).unwrap();
 
-        // Old USK cannot open new encapsulations.
         assert_eq!(None, usk_1.decapsulate(&mut rng, &new_enc_1).unwrap());
         assert_eq!(None, usk_1.decapsulate(&mut rng, &new_enc_2).unwrap());
         assert_eq!(None, usk_2.decapsulate(&mut rng, &new_enc_2).unwrap());
         assert_eq!(None, usk_2.decapsulate(&mut rng, &new_enc_1).unwrap());
 
-        // Refresh USK.
-        // Only the first one keeps its old rights.
         refresh_usk(&mut rng, &mut auth, &mut usk_1, true).unwrap();
         refresh_usk(&mut rng, &mut auth, &mut usk_2, false).unwrap();
 
-        // Refreshed USK can open the new encapsulation.
         assert_eq!(Some(new_key_1), usk_1.decapsulate(&mut rng, &new_enc_1).unwrap());
         assert_eq!(None, usk_1.decapsulate(&mut rng, &new_enc_2).unwrap());
         assert_eq!(Some(new_key_2), usk_2.decapsulate(&mut rng, &new_enc_2).unwrap());
         assert_eq!(None, usk_2.decapsulate(&mut rng, &new_enc_1).unwrap());
 
-        // Only USK 1 can still open the old encapsulation.
         assert_eq!(Some(old_key_1), usk_1.decapsulate(&mut rng, &old_enc_1).unwrap());
         assert_eq!(None, usk_1.decapsulate(&mut rng, &old_enc_2).unwrap());
         assert_eq!(None, usk_2.decapsulate(&mut rng, &old_enc_2).unwrap());
         assert_eq!(None, usk_2.decapsulate(&mut rng, &old_enc_1).unwrap());
     }
 
-    /// This test asserts that forged USK cannot be refreshed.
     #[test]
     fn test_integrity_check() {
         let mut rng = CsRng::from_entropy();
@@ -1361,7 +1251,6 @@ mod test {
         let usk_1 = usk_keygen(&mut rng, &mut auth, subspace_1.clone()).unwrap();
         let usk_2 = usk_keygen(&mut rng, &mut auth, subspace_2.clone()).unwrap();
 
-        // Here we are trying to get access to both USK1 and USK2 rights.
         let mut old_forged_usk = usk_1.clone();
         for (key, chain) in usk_2.sk_access_rights.iter() {
             old_forged_usk.sk_access_rights.insert_new_chain(key.clone(), chain.clone());
@@ -1371,7 +1260,6 @@ mod test {
             usk_1.sk_access_rights.count_elements() + usk_2.sk_access_rights.count_elements()
         );
 
-        // The forged key refresh is rejected: no modification is performed on it.
         let mut new_forged_usk = old_forged_usk.clone();
         assert!(refresh_usk(&mut rng, &mut auth, &mut new_forged_usk, true).is_err());
         assert_eq!(new_forged_usk, old_forged_usk);
