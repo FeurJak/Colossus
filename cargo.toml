@@ -1,19 +1,14 @@
 [workspace]
 members = [
-    "crates/akd",
-    "crates/covercrypt",
-    "crates/types",
-    "crates/common",
-    "crates/cryptography",
-]
+    "colossus-core",
 
+]
 resolver = "2"
 
 [workspace.package]
 version = "1.0.0-beta.1"
 authors = ["Vomer <tarasworonjanski@gmail.com>"]
 edition = "2024"
-rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/0xVomer/Colossus/"
 
@@ -26,16 +21,13 @@ unused_qualifications = "warn"
 
 
 [workspace.dependencies]
-colossus-akd = { path = "crates/akd" }
-colossus-covercrypt = { path = "crates/covercrypt" }
-colossus-types = { path = "crates/types" }
-colossus-common = { path = "crates/common" }
-colossus-cryptography = { path = "crates/cryptography" }
+colossus-core = { path = "colossus-core" }
 
 cosmian_crypto_core = { version = "10.0.1", default-features = false, features = [
   "ser",
   "sha3",
   "aes",
+  "chacha",
   "curve25519",
 ] }
 elliptic-curve = { version = "0.13.8" }
