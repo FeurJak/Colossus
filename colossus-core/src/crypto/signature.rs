@@ -35,9 +35,9 @@
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use colossus_core::crypto::signature::{Falcon512Keypair, Falcon512Signature};
-//! use miden_crypto::Word;
+//! ```
+//! use colossus_core::crypto::signature::Falcon512Keypair;
+//! use colossus_core::crypto::Word;
 //!
 //! // Generate a new keypair
 //! let keypair = Falcon512Keypair::new();

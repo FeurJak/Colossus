@@ -54,17 +54,17 @@
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use colossus_core::miden::notes::{CapabilityNote, RevocationNote};
+//! ```
+//! use colossus_core::miden::{NoteMetadata, NoteType};
 //!
-//! // Create a capability note from an existing token and attestation
-//! let note = CapabilityNote::from_attestation(&attestation, expiry_timestamp);
+//! // Create note metadata
+//! let metadata = NoteMetadata::new(
+//!     NoteType::Capability,
+//!     1000,  // timestamp
+//! ).with_tag(42);
 //!
-//! // Convert to Words for on-chain storage
-//! let words = note.to_words();
-//!
-//! // Restore from on-chain data
-//! let restored = CapabilityNote::from_words(&words)?;
+//! // Convert to Word for on-chain storage
+//! let word = metadata.to_word();
 //! ```
 
 pub mod notes;

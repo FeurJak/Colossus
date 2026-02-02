@@ -27,10 +27,12 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```
 //! use colossus_core::policy::{BlindedAccessStructure, DimensionType, IssuerBlindingKey};
+//! use colossus_core::crypto::{Felt, Word};
 //!
 //! // Create an authority with blinded structure
+//! let authority_pk = Word::new([Felt::new(1), Felt::new(2), Felt::new(3), Felt::new(4)]);
 //! let mut structure = BlindedAccessStructure::new(authority_pk);
 //!
 //! // Add dimensions
@@ -39,7 +41,9 @@
 //!
 //! // Issuers create blinded attributes
 //! let mut issuer = IssuerBlindingKey::new();
-//! let blinded = issuer.create_blinded_attribute("Security", "TopSecret", &authority_pk)?;
+//! issuer.register_with_authority(authority_pk, 1000);
+//! let blinded = issuer.create_blinded_attribute("Security", "TopSecret", &authority_pk)
+//!     .expect("create failed");
 //! ```
 
 mod access_policy;

@@ -212,10 +212,108 @@ mod serialization {
         }
     }
 
+    /// Test serialization/deserialization of EncryptedHeader and CleartextHeader.
     #[test]
-    #[ignore] // Test requires blinded mode setup - stubbed for now
     fn test_ser() {
-        // This test needs to be updated to use blinded mode
-        // For now, it's stubbed until the blinded mode test infrastructure is complete
+        use crate::access_control::AccessControl;
+        use crate::access_control::capability::create_blinded_capability_token;
+        use crate::policy::{AccessPolicy, BlindedClaimBuilder, DimensionType, IssuerBlindingKey};
+        use cosmian_crypto_core::reexport::rand_core::SeedableRng;
+
+        let mut rng = cosmian_crypto_core::CsRng::from_entropy();
+        let access_control = AccessControl::default();
+
+        // Setup blinded authority
+        let mut auth = access_control.setup_blinded_authority().unwrap().with_identity();
+        auth.init_blinded_structure().unwrap();
+        let authority_pk = auth.authority_pk().expect("should have pk");
+
+        // Add dimension
+        let role_dim = auth.add_blinded_dimension("ROLE", DimensionType::Anarchy).unwrap();
+
+        // Setup issuer
+        let mut issuer = IssuerBlindingKey::new();
+        let reg = issuer.register_with_authority(authority_pk, 1000);
+        let issuer_id = auth
+            .register_blinded_issuer(reg, issuer.identity().public_key(), &mut rng)
+            .unwrap();
+
+        // Add attributes
+        let timestamp = 2000u64;
+        let attr = issuer.create_blinded_attribute("ROLE", "ADMIN", &authority_pk).unwrap();
+        let proof = issuer.prove_ownership("ROLE", "ADMIN", &authority_pk).unwrap();
+        auth.add_blinded_attribute_with_name(
+            &role_dim, "ROLE", "ADMIN", attr, &proof, timestamp, &mut rng,
+        )
+        .unwrap();
+
+        let apk = auth.rpk().unwrap();
+
+        // Create policy and encrypt
+        let policy = AccessPolicy::parse("ROLE::ADMIN").unwrap();
+        let metadata = b"test metadata for serialization";
+        let aad = b"test_aad";
+
+        let (secret, enc_header) = super::EncryptedHeader::generate_with_policy(
+            &access_control,
+            &apk,
+            &auth,
+            &policy,
+            Some(metadata),
+            Some(aad),
+        )
+        .unwrap();
+
+        // Test EncryptedHeader serialization
+        let serialized = enc_header.serialize().unwrap();
+        let deserialized = super::EncryptedHeader::deserialize(&serialized).unwrap();
+        assert_eq!(enc_header, deserialized);
+
+        // Get capability token
+        let claim = BlindedClaimBuilder::new(&mut issuer, authority_pk)
+            .add_attribute("ROLE", "ADMIN")
+            .build_batched()
+            .unwrap();
+        let cap_claim =
+            crate::access_control::capability::BlindedCapabilityClaim::from_batched_claim(
+                issuer_id, claim,
+            );
+        let cap_token = create_blinded_capability_token(&mut rng, &mut auth, &[cap_claim]).unwrap();
+
+        // Decrypt original
+        let cleartext =
+            enc_header.decrypt(&access_control, &cap_token, Some(aad)).unwrap().unwrap();
+        assert_eq!(cleartext.secret, secret);
+        assert_eq!(cleartext.metadata.as_ref().unwrap(), metadata);
+
+        // Decrypt deserialized (should produce same result)
+        let cleartext2 =
+            deserialized.decrypt(&access_control, &cap_token, Some(aad)).unwrap().unwrap();
+        assert_eq!(cleartext.secret, cleartext2.secret);
+        assert_eq!(cleartext.metadata, cleartext2.metadata);
+
+        // Test CleartextHeader serialization
+        let cleartext_serialized = cleartext.serialize().unwrap();
+        let cleartext_deserialized =
+            super::CleartextHeader::deserialize(&cleartext_serialized).unwrap();
+        assert_eq!(cleartext.metadata, cleartext_deserialized.metadata);
+        // Note: Secret comparison requires special handling due to SecretBox
+        // Just verify the metadata matches
+
+        // Test with no metadata
+        let (_, enc_header_no_meta) = super::EncryptedHeader::generate_with_policy(
+            &access_control,
+            &apk,
+            &auth,
+            &policy,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let serialized_no_meta = enc_header_no_meta.serialize().unwrap();
+        let deserialized_no_meta =
+            super::EncryptedHeader::deserialize(&serialized_no_meta).unwrap();
+        assert_eq!(enc_header_no_meta, deserialized_no_meta);
     }
 }

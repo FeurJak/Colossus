@@ -27,7 +27,7 @@ use super::{
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use colossus_core::crypto::{CryptoProvider, DefaultCryptoProvider};
 ///
 /// // Hash data using the default provider

@@ -1057,10 +1057,6 @@ impl UserId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        access_control::{AccessControl, cryptography::traits::KemAc, test_utils::gen_auth},
-        policy::AccessPolicy,
-    };
     use cosmian_crypto_core::{
         CsRng, bytes_ser_de::test_serialization, reexport::rand_core::SeedableRng,
     };
@@ -1068,68 +1064,42 @@ mod tests {
 
     #[test]
     fn test_serializations() {
-        {
-            let mut rng = CsRng::from_entropy();
-            let access_right_1 = Right::random(&mut rng);
-            let access_right_2 = Right::random(&mut rng);
-            let access_right_3 = Right::random(&mut rng);
+        // Test RootAuthority serialization with direct Right-based access
+        let mut rng = CsRng::from_entropy();
+        let access_right_1 = Right::random(&mut rng);
+        let access_right_2 = Right::random(&mut rng);
+        let access_right_3 = Right::random(&mut rng);
 
-            let universe = HashMap::from([
-                (access_right_1.clone(), AttributeStatus::EncryptDecrypt),
-                (access_right_2.clone(), AttributeStatus::EncryptDecrypt),
-                (access_right_3.clone(), AttributeStatus::EncryptDecrypt),
-            ]);
+        let universe = HashMap::from([
+            (access_right_1.clone(), AttributeStatus::EncryptDecrypt),
+            (access_right_2.clone(), AttributeStatus::EncryptDecrypt),
+            (access_right_3.clone(), AttributeStatus::EncryptDecrypt),
+        ]);
 
-            let user_set = HashSet::from([access_right_1.clone(), access_right_3.clone()]);
-            let target_set = HashSet::from([access_right_1, access_right_3]);
-            let mut rng = CsRng::from_entropy();
+        let user_set = HashSet::from([access_right_1.clone(), access_right_3.clone()]);
+        let target_set = HashSet::from([access_right_1, access_right_3]);
+        let mut rng = CsRng::from_entropy();
 
-            let mut auth = RootAuthority::setup(MIN_TRACING_LEVEL + 2, &mut rng).unwrap();
-            update_root_authority(&mut rng, &mut auth, universe.clone()).unwrap();
-            let rpk = auth.rpk().unwrap();
-            let usk = usk_keygen(&mut rng, &mut auth, user_set).unwrap();
-            let (_, enc) = rpk.encapsulate(&mut rng, &target_set).unwrap();
+        let mut auth = RootAuthority::setup(MIN_TRACING_LEVEL + 2, &mut rng).unwrap();
+        update_root_authority(&mut rng, &mut auth, universe.clone()).unwrap();
+        let rpk = auth.rpk().unwrap();
+        let usk = usk_keygen(&mut rng, &mut auth, user_set).unwrap();
+        let (_, enc) = rpk.encapsulate(&mut rng, &target_set).unwrap();
 
-            test_serialization(&auth).unwrap();
-            test_serialization(&rpk).unwrap();
-            test_serialization(&usk).unwrap();
-            test_serialization(&enc).unwrap();
+        test_serialization(&auth).unwrap();
+        test_serialization(&rpk).unwrap();
+        test_serialization(&usk).unwrap();
+        test_serialization(&enc).unwrap();
 
-            rekey(&mut rng, &mut auth, universe.keys().cloned().collect()).unwrap();
-            test_serialization(&auth).unwrap();
-        }
-
-        {
-            let api = AccessControl::default();
-            let (mut msk, mpk) = gen_auth(&api, false).unwrap();
-            let usk = api
-                .grant_access_right_keys(&mut msk, &AccessPolicy::parse("SEC::TOP").unwrap())
-                .unwrap();
-            let (_, enc) = api.encaps(&mpk, &AccessPolicy::parse("DPT::MKG").unwrap()).unwrap();
-
-            test_serialization(&msk).unwrap();
-            test_serialization(&mpk).unwrap();
-            test_serialization(&usk).unwrap();
-            test_serialization(&enc).unwrap();
-        }
+        rekey(&mut rng, &mut auth, universe.keys().cloned().collect()).unwrap();
+        test_serialization(&auth).unwrap();
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::access_control::cryptography::ae_poseidon2::{POSEIDON2_KEY_SIZE, Poseidon2Aead};
-    use crate::{
-        access_control::{
-            AccessControl,
-            cryptography::{
-                MIN_TRACING_LEVEL,
-                traits::{KemAc, PkeAc},
-            },
-            test_utils::gen_auth,
-        },
-        policy::{AccessPolicy, AttributeStatus, Right},
-    };
+    use crate::policy::{AttributeStatus, Right};
     use cosmian_crypto_core::{CsRng, reexport::rand_core::SeedableRng};
     use std::collections::{HashMap, HashSet};
 
@@ -1299,54 +1269,7 @@ mod test {
         assert_eq!(new_forged_usk, old_forged_usk);
     }
 
-    #[test]
-    fn test_reencrypt_with_auth() {
-        let ap = AccessPolicy::parse("DPT::FIN && SEC::TOP").unwrap();
-        let cc = AccessControl::default();
-
-        let mut rng = CsRng::from_entropy();
-
-        let (mut auth, _) = gen_auth(&cc, false).unwrap();
-        let rpk = cc.update_auth(&mut auth).expect("cannot update master keys");
-        let mut usk = cc.grant_access_right_keys(&mut auth, &ap).expect("cannot generate usk");
-
-        let (old_key, old_enc) = cc.encaps(&rpk, &ap).unwrap();
-        assert_eq!(Some(&old_key), usk.decapsulate(&mut rng, &old_enc).unwrap().as_ref());
-
-        cc.rekey(&mut auth, &ap).unwrap();
-        let new_rpk = auth.rpk().unwrap();
-        let (new_key, new_enc) = cc.recaps(&auth, &new_rpk, &old_enc).unwrap();
-        cc.refresh_usk(&mut auth, &mut usk, true).unwrap();
-        assert_eq!(Some(new_key), usk.decapsulate(&mut rng, &new_enc).unwrap());
-        assert_ne!(Some(old_key), usk.decapsulate(&mut rng, &new_enc).unwrap());
-    }
-
-    #[test]
-    fn test_root_kem() {
-        let ap = AccessPolicy::parse("DPT::FIN && SEC::TOP").unwrap();
-        let api = AccessControl::default();
-        let (mut auth, _rpk) = gen_auth(&api, false).unwrap();
-        let rpk = api.update_auth(&mut auth).expect("cannot update master keys");
-        let usk = api.grant_access_right_keys(&mut auth, &ap).expect("cannot generate usk");
-        let (secret, enc) = api.encaps(&rpk, &ap).unwrap();
-        let res = api.decaps(&usk, &enc).unwrap();
-        assert_eq!(secret, res.unwrap());
-    }
-
-    #[test]
-    fn test_root_pke() {
-        let ap = AccessPolicy::parse("DPT::FIN && SEC::TOP").unwrap();
-        let api = AccessControl::default();
-        let (mut auth, rpk) = gen_auth(&api, false).unwrap();
-
-        let ptx = "testing encryption/decryption".as_bytes();
-        let aad = "COLOSSUS-ROOT".as_bytes();
-
-        let ctx = PkeAc::<POSEIDON2_KEY_SIZE, Poseidon2Aead>::encrypt(&api, &rpk, &ap, ptx, aad)
-            .expect("cannot encrypt!");
-        let usk = api.grant_access_right_keys(&mut auth, &ap).expect("cannot generate usk");
-        let ptx1 = PkeAc::<POSEIDON2_KEY_SIZE, Poseidon2Aead>::decrypt(&api, &usk, &ctx, aad)
-            .expect("cannot decrypt the ciphertext");
-        assert_eq!(ptx, &*ptx1.unwrap());
-    }
+    // NOTE: Legacy tests test_reencrypt_with_auth, test_root_kem, and test_root_pke
+    // have been moved to capability.rs and rewritten for blinded mode.
+    // See capability.rs for the updated versions.
 }

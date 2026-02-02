@@ -15,17 +15,19 @@
 //!
 //! # Usage
 //!
-//! ```ignore
+//! ```
 //! use colossus_core::access_control::{AccessControl, CapabilityAuthority};
 //!
 //! // Create an access control instance
 //! let ac = AccessControl::default();
 //!
 //! // Setup a capability authority with blinded mode
-//! let auth = ac.setup_blinded_authority()?;
+//! let mut auth = ac.setup_blinded_authority().expect("setup failed");
+//! auth = auth.with_identity();
+//! auth.init_blinded_structure().expect("init failed");
 //!
-//! // Grant capabilities based on blinded claims
-//! let capability = ac.grant_blinded_capability(&mut auth, &claims)?;
+//! // Register issuers and grant capabilities based on blinded claims
+//! // See test/access_control.rs for complete examples
 //! ```
 //!
 //! # Security Model
@@ -79,11 +81,13 @@ use std::sync::{Mutex, MutexGuard};
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use colossus_core::access_control::AccessControl;
 ///
 /// let ac = AccessControl::default();
-/// let (authority, public_key) = ac.setup_capability_authority()?;
+/// let mut auth = ac.setup_blinded_authority().expect("setup failed");
+/// auth = auth.with_identity();
+/// auth.init_blinded_structure().expect("init failed");
 /// ```
 #[derive(Debug)]
 pub struct AccessControl {

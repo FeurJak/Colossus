@@ -413,25 +413,244 @@ mod test {
         assert_eq!(new_forged_cap_token, old_forged_cap_token);
     }
 
+    /// Test re-encryption flow with blinded authority.
+    ///
+    /// This tests the ability to re-key encrypted content while maintaining
+    /// access for authorized users.
     #[test]
-    #[ignore] // Legacy test - requires AccessPolicy-based flow which has been removed
     fn test_reencrypt_with_auth() {
-        // This test used the legacy AccessPolicy-based flow with gen_auth
-        // and grant_unsafe_capability. The functionality is now blinded-mode only.
+        use crate::access_control::AccessControl;
+        use crate::access_control::capability::create_blinded_capability_token;
+        use crate::policy::{AccessPolicy, BlindedClaimBuilder, DimensionType, IssuerBlindingKey};
+
+        let mut rng = CsRng::from_entropy();
+        let access_control = AccessControl::default();
+
+        // Setup blinded authority
+        let mut auth = access_control.setup_blinded_authority().unwrap().with_identity();
+        auth.init_blinded_structure().unwrap();
+        let authority_pk = auth.authority_pk().expect("should have pk");
+
+        // Add dimensions
+        let dept_dim = auth.add_blinded_dimension("DPT", DimensionType::Anarchy).unwrap();
+        let sec_dim = auth.add_blinded_dimension("SEC", DimensionType::Hierarchy).unwrap();
+
+        // Setup issuer
+        let mut issuer = IssuerBlindingKey::new();
+        let reg = issuer.register_with_authority(authority_pk, 1000);
+        let issuer_id = auth
+            .register_blinded_issuer(reg, issuer.identity().public_key(), &mut rng)
+            .unwrap();
+
+        // Add attributes
+        let timestamp = 2000u64;
+        for attr in &["FIN", "ENG", "HR"] {
+            let a = issuer.create_blinded_attribute("DPT", attr, &authority_pk).unwrap();
+            let p = issuer.prove_ownership("DPT", attr, &authority_pk).unwrap();
+            auth.add_blinded_attribute_with_name(
+                &dept_dim, "DPT", attr, a, &p, timestamp, &mut rng,
+            )
+            .unwrap();
+        }
+        for attr in &["LOW", "MED", "TOP"] {
+            let a = issuer.create_blinded_attribute("SEC", attr, &authority_pk).unwrap();
+            let p = issuer.prove_ownership("SEC", attr, &authority_pk).unwrap();
+            auth.add_blinded_attribute_with_name(&sec_dim, "SEC", attr, a, &p, timestamp, &mut rng)
+                .unwrap();
+        }
+
+        // Get initial public key
+        let rpk = auth.rpk().unwrap();
+
+        // Create policy and resolve to rights
+        let policy = AccessPolicy::parse("DPT::FIN && SEC::TOP").unwrap();
+        let rights = auth.resolve_policy(&policy).unwrap();
+
+        // User gets capability token
+        let claim = BlindedClaimBuilder::new(&mut issuer, authority_pk)
+            .add_attribute("DPT", "FIN")
+            .add_attribute("SEC", "TOP")
+            .build_batched()
+            .unwrap();
+        let cap_claim = super::BlindedCapabilityClaim::from_batched_claim(issuer_id, claim);
+        let mut cap_token =
+            create_blinded_capability_token(&mut rng, &mut auth, &[cap_claim]).unwrap();
+
+        // Encrypt with original keys
+        let (old_key, old_enc) = rpk.encapsulate(&mut rng, &rights).unwrap();
+
+        // User can decrypt
+        assert_eq!(Some(&old_key), cap_token.decapsulate(&mut rng, &old_enc).unwrap().as_ref());
+
+        // Refresh authority keys
+        refresh_capability_authority(&mut rng, &mut auth, rights.clone()).unwrap();
+        let new_rpk = auth.rpk().unwrap();
+
+        // New encryption
+        let (new_key, new_enc) = new_rpk.encapsulate(&mut rng, &rights).unwrap();
+
+        // Old token can't decrypt new encryption (keys have changed)
+        assert_eq!(None, cap_token.decapsulate(&mut rng, &new_enc).unwrap());
+
+        // Refresh the capability token
+        refresh_capability_token(&mut rng, &mut auth, &mut cap_token, true).unwrap();
+
+        // Now user can decrypt new encryption
+        assert_eq!(Some(new_key), cap_token.decapsulate(&mut rng, &new_enc).unwrap());
+
+        // And still decrypt old encryption (with backward compatibility)
+        assert_eq!(Some(old_key), cap_token.decapsulate(&mut rng, &old_enc).unwrap());
     }
 
+    /// Test KEM (Key Encapsulation Mechanism) with blinded mode.
+    ///
+    /// This tests the core encrypt/decrypt flow using policy-based access control.
     #[test]
-    #[ignore] // Legacy test - requires AccessPolicy-based flow which has been removed
     fn test_root_kem() {
-        // This test used the legacy AccessPolicy-based KEM flow.
-        // Use encapsulate_for_rights and decapsulate methods instead.
+        use crate::access_control::AccessControl;
+        use crate::access_control::capability::create_blinded_capability_token;
+        use crate::policy::{AccessPolicy, BlindedClaimBuilder, DimensionType, IssuerBlindingKey};
+
+        let mut rng = CsRng::from_entropy();
+        let access_control = AccessControl::default();
+
+        // Setup blinded authority
+        let mut auth = access_control.setup_blinded_authority().unwrap().with_identity();
+        auth.init_blinded_structure().unwrap();
+        let authority_pk = auth.authority_pk().expect("should have pk");
+
+        // Add dimensions
+        let dept_dim = auth.add_blinded_dimension("DPT", DimensionType::Anarchy).unwrap();
+        let sec_dim = auth.add_blinded_dimension("SEC", DimensionType::Hierarchy).unwrap();
+
+        // Setup issuer
+        let mut issuer = IssuerBlindingKey::new();
+        let reg = issuer.register_with_authority(authority_pk, 1000);
+        let issuer_id = auth
+            .register_blinded_issuer(reg, issuer.identity().public_key(), &mut rng)
+            .unwrap();
+
+        // Add attributes
+        let timestamp = 2000u64;
+        for attr in &["FIN", "ENG"] {
+            let a = issuer.create_blinded_attribute("DPT", attr, &authority_pk).unwrap();
+            let p = issuer.prove_ownership("DPT", attr, &authority_pk).unwrap();
+            auth.add_blinded_attribute_with_name(
+                &dept_dim, "DPT", attr, a, &p, timestamp, &mut rng,
+            )
+            .unwrap();
+        }
+        for attr in &["LOW", "TOP"] {
+            let a = issuer.create_blinded_attribute("SEC", attr, &authority_pk).unwrap();
+            let p = issuer.prove_ownership("SEC", attr, &authority_pk).unwrap();
+            auth.add_blinded_attribute_with_name(&sec_dim, "SEC", attr, a, &p, timestamp, &mut rng)
+                .unwrap();
+        }
+
+        let rpk = auth.rpk().unwrap();
+
+        // Create policy and resolve to rights
+        let policy = AccessPolicy::parse("DPT::FIN && SEC::TOP").unwrap();
+        let rights = auth.resolve_policy(&policy).unwrap();
+
+        // User gets capability token
+        let claim = BlindedClaimBuilder::new(&mut issuer, authority_pk)
+            .add_attribute("DPT", "FIN")
+            .add_attribute("SEC", "TOP")
+            .build_batched()
+            .unwrap();
+        let cap_claim = super::BlindedCapabilityClaim::from_batched_claim(issuer_id, claim);
+        let cap_token = create_blinded_capability_token(&mut rng, &mut auth, &[cap_claim]).unwrap();
+
+        // Encapsulate (encrypt)
+        let (secret, enc) = rpk.encapsulate(&mut rng, &rights).unwrap();
+
+        // Decapsulate (decrypt)
+        let result = cap_token.decapsulate(&mut rng, &enc).unwrap();
+        assert_eq!(Some(secret), result);
     }
 
+    /// Test PKE (Public Key Encryption) with blinded mode using EncryptedHeader.
+    ///
+    /// This tests encryption/decryption of actual data (metadata) with AAD.
     #[test]
-    #[ignore] // Legacy test - requires PkeAc trait which has been removed
     fn test_root_pke() {
-        // This test used the legacy PkeAc trait.
-        // The blinded mode provides privacy-preserving encryption instead.
+        use crate::access_control::capability::create_blinded_capability_token;
+        use crate::access_control::{AccessControl, EncryptedHeader};
+        use crate::policy::{AccessPolicy, BlindedClaimBuilder, DimensionType, IssuerBlindingKey};
+
+        let mut rng = CsRng::from_entropy();
+        let access_control = AccessControl::default();
+
+        // Setup blinded authority
+        let mut auth = access_control.setup_blinded_authority().unwrap().with_identity();
+        auth.init_blinded_structure().unwrap();
+        let authority_pk = auth.authority_pk().expect("should have pk");
+
+        // Add dimensions
+        let dept_dim = auth.add_blinded_dimension("DPT", DimensionType::Anarchy).unwrap();
+        let sec_dim = auth.add_blinded_dimension("SEC", DimensionType::Hierarchy).unwrap();
+
+        // Setup issuer
+        let mut issuer = IssuerBlindingKey::new();
+        let reg = issuer.register_with_authority(authority_pk, 1000);
+        let issuer_id = auth
+            .register_blinded_issuer(reg, issuer.identity().public_key(), &mut rng)
+            .unwrap();
+
+        // Add attributes
+        let timestamp = 2000u64;
+        for attr in &["FIN", "ENG"] {
+            let a = issuer.create_blinded_attribute("DPT", attr, &authority_pk).unwrap();
+            let p = issuer.prove_ownership("DPT", attr, &authority_pk).unwrap();
+            auth.add_blinded_attribute_with_name(
+                &dept_dim, "DPT", attr, a, &p, timestamp, &mut rng,
+            )
+            .unwrap();
+        }
+        for attr in &["LOW", "TOP"] {
+            let a = issuer.create_blinded_attribute("SEC", attr, &authority_pk).unwrap();
+            let p = issuer.prove_ownership("SEC", attr, &authority_pk).unwrap();
+            auth.add_blinded_attribute_with_name(&sec_dim, "SEC", attr, a, &p, timestamp, &mut rng)
+                .unwrap();
+        }
+
+        let apk = auth.rpk().unwrap();
+
+        // Test data
+        let plaintext = b"testing encryption/decryption with blinded mode";
+        let aad = b"COLOSSUS-ROOT";
+
+        // Create policy
+        let policy = AccessPolicy::parse("DPT::FIN && SEC::TOP").unwrap();
+
+        // Encrypt using EncryptedHeader
+        let (secret, enc_header) = EncryptedHeader::generate_with_policy(
+            &access_control,
+            &apk,
+            &auth,
+            &policy,
+            Some(plaintext),
+            Some(aad),
+        )
+        .unwrap();
+
+        // User gets capability token
+        let claim = BlindedClaimBuilder::new(&mut issuer, authority_pk)
+            .add_attribute("DPT", "FIN")
+            .add_attribute("SEC", "TOP")
+            .build_batched()
+            .unwrap();
+        let cap_claim = super::BlindedCapabilityClaim::from_batched_claim(issuer_id, claim);
+        let cap_token = create_blinded_capability_token(&mut rng, &mut auth, &[cap_claim]).unwrap();
+
+        // Decrypt
+        let result = enc_header.decrypt(&access_control, &cap_token, Some(aad)).unwrap();
+        assert!(result.is_some());
+
+        let cleartext = result.unwrap();
+        assert_eq!(cleartext.secret, secret);
+        assert_eq!(cleartext.metadata.unwrap(), plaintext.to_vec());
     }
 
     // ========================================================================

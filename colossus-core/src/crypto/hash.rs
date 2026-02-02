@@ -265,14 +265,14 @@ impl From<Poseidon2Digest> for Word {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use colossus_core::crypto::hash::Poseidon2Hash;
 ///
 /// // Hash bytes (converted to field elements internally)
 /// let digest = Poseidon2Hash::hash_bytes(b"hello world");
 ///
 /// // Hash field elements directly (most efficient)
-/// use miden_crypto::Felt;
+/// use colossus_core::crypto::Felt;
 /// let elements = vec![Felt::new(1), Felt::new(2), Felt::new(3)];
 /// let digest = Poseidon2Hash::hash_elements(&elements);
 /// ```

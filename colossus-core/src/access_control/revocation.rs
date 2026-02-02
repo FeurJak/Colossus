@@ -29,24 +29,26 @@
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use colossus_core::access_control::revocation::{RevocationRegistry, RevocationProof};
+//! ```
+//! use colossus_core::access_control::revocation::{RevocationRegistry, CapabilityId};
 //!
 //! // Create a new registry
 //! let mut registry = RevocationRegistry::new();
 //!
-//! // Revoke a capability
-//! let capability_id = /* ... */;
-//! registry.revoke(&capability_id)?;
+//! // Create a capability ID from bytes
+//! let capability_id = CapabilityId::new(vec![1, 2, 3, 4]);
+//!
+//! // Check if it's revoked (should be false initially)
+//! assert!(!registry.is_revoked(&capability_id).unwrap());
+//!
+//! // Revoke the capability
+//! registry.revoke(&capability_id).unwrap();
+//!
+//! // Now it should be revoked
+//! assert!(registry.is_revoked(&capability_id).unwrap());
 //!
 //! // Get the current root for on-chain commitment
 //! let root = registry.root();
-//!
-//! // Generate a proof that a capability is NOT revoked
-//! let proof = registry.prove_not_revoked(&capability_id)?;
-//!
-//! // Verify the proof (can be done off-chain or in STARK)
-//! assert!(proof.verify(&root, &capability_id)?);
 //! ```
 
 use crate::access_control::capability::AuthorityIdentity;

@@ -393,10 +393,208 @@ fn test_access_denied_flow_b() -> Result<()> {
     Ok(())
 }
 
+/// Test access control with attestations in blinded mode.
+///
+/// This test demonstrates the complete flow of:
+/// 1. Authority setup with identity (required for attestations)
+/// 2. Blinded attribute registration with ownership proofs
+/// 3. Policy-based encryption
+/// 4. Capability token issuance
+/// 5. Token attestation for external verification
+/// 6. Decryption verification
 #[test]
-#[ignore = "TODO: Implement attestation integration with blinded mode"]
 fn test_access_control_with_attestations() -> Result<()> {
-    // This test needs further work to integrate attestations with blinded mode
+    use crate::access_control::capability::CapabilityAuthority;
+
+    let mut rng = cosmian_crypto_core::CsRng::from_entropy();
+    let nonce = test_nonce();
+
+    // =========================================================================
+    // PHASE 1: Authority Setup with Identity (required for attestations)
+    // =========================================================================
+
+    let access_control = AccessControl::default();
+    let auth = access_control.setup_blinded_authority()?;
+    let mut auth = auth.with_identity();
+    auth.init_blinded_structure()?;
+
+    // Verify identity is set up
+    assert!(auth.identity().is_some(), "authority should have identity");
+
+    // Create self-attestation proving control of authority key
+    let setup_timestamp = 1000u64;
+    auth.identity_mut()
+        .expect("should have identity")
+        .create_self_attestation(setup_timestamp);
+
+    // Verify self-attestation
+    assert!(
+        auth.identity().unwrap().verify_self_attestation(setup_timestamp),
+        "self-attestation should verify"
+    );
+
+    let authority_pk = auth.authority_pk().expect("authority should have pk");
+
+    // =========================================================================
+    // PHASE 2: Setup Dimensions and Register Issuer
+    // =========================================================================
+
+    let role_dim = auth.add_blinded_dimension("ROLE", DimensionType::Anarchy)?;
+    let level_dim = auth.add_blinded_dimension("LEVEL", DimensionType::Hierarchy)?;
+
+    // Register issuer
+    let mut issuer = IssuerBlindingKey::new();
+    let reg = issuer.register_with_authority(authority_pk, setup_timestamp);
+    let issuer_id = auth.register_blinded_issuer(reg, issuer.identity().public_key(), &mut rng)?;
+
+    // =========================================================================
+    // PHASE 3: Add Blinded Attributes with Ownership Proofs
+    // =========================================================================
+
+    let attr_timestamp = 2000u64;
+
+    // Role attributes
+    for role in &["ADMIN", "USER"] {
+        let attr = issuer.create_blinded_attribute("ROLE", role, &authority_pk)?;
+        let proof = issuer.prove_ownership("ROLE", role, &authority_pk)?;
+        auth.add_blinded_attribute_with_name(
+            &role_dim,
+            "ROLE",
+            role,
+            attr,
+            &proof,
+            attr_timestamp,
+            &mut rng,
+        )?;
+    }
+
+    // Level attributes
+    for level in &["L1", "L2", "L3"] {
+        let attr = issuer.create_blinded_attribute("LEVEL", level, &authority_pk)?;
+        let proof = issuer.prove_ownership("LEVEL", level, &authority_pk)?;
+        auth.add_blinded_attribute_with_name(
+            &level_dim,
+            "LEVEL",
+            level,
+            attr,
+            &proof,
+            attr_timestamp,
+            &mut rng,
+        )?;
+    }
+
+    let apk = auth.rpk()?;
+
+    // =========================================================================
+    // PHASE 4: Encrypt Data with Access Policy
+    // =========================================================================
+
+    let policy = AccessPolicy::parse("ROLE::ADMIN && LEVEL::L3")?;
+
+    let (secret, enc_header) = EncryptedHeader::generate_with_policy(
+        &access_control,
+        &apk,
+        &auth,
+        &policy,
+        Some(b"attested_metadata"),
+        Some(&nonce.to_be_bytes()),
+    )?;
+
+    // =========================================================================
+    // PHASE 5: User Claims Attributes and Gets Capability Token
+    // =========================================================================
+
+    let claim = BlindedClaimBuilder::new(&mut issuer, authority_pk)
+        .add_attribute("ROLE", "ADMIN")
+        .add_attribute("LEVEL", "L3")
+        .build_batched()?;
+
+    let cap_claim = BlindedCapabilityClaim::from_batched_claim(issuer_id, claim);
+    let capability = create_blinded_capability_token(&mut rng, &mut auth, &[cap_claim])?;
+
+    // =========================================================================
+    // PHASE 6: Create Attestation for the Capability Token
+    // =========================================================================
+
+    let attestation_timestamp = 3000u64;
+    let attestation = auth
+        .attest_token(&capability, attestation_timestamp)?
+        .expect("should create attestation");
+
+    // Verify attestation
+    assert!(attestation.verify(), "attestation should verify");
+    assert_eq!(attestation.timestamp, attestation_timestamp);
+
+    // Verify attestation is from expected authority
+    let expected_commitment = auth.identity().unwrap().public_key().commitment();
+    assert_eq!(
+        attestation.authority_pk.commitment(),
+        expected_commitment,
+        "attestation should be from correct authority"
+    );
+
+    // Token commitment should be deterministic
+    let commitment1 = CapabilityAuthority::compute_token_commitment(&capability)?;
+    let commitment2 = CapabilityAuthority::compute_token_commitment(&capability)?;
+    assert_eq!(commitment1, commitment2, "token commitment should be deterministic");
+
+    // Attestation should cover the correct token
+    assert_eq!(
+        attestation.token_commitment, commitment1,
+        "attestation should cover the correct token"
+    );
+
+    // =========================================================================
+    // PHASE 7: Decrypt and Verify Access
+    // =========================================================================
+
+    match enc_header.decrypt(&access_control, &capability, Some(&nonce.to_be_bytes()))? {
+        Some(data) => {
+            assert_eq!(data.secret, secret);
+            assert_eq!(data.metadata.unwrap(), b"attested_metadata");
+            println!("Access control with attestations test passed!");
+        },
+        None => {
+            panic!("User with correct attributes should be able to decrypt!");
+        },
+    }
+
+    // =========================================================================
+    // PHASE 8: Test Delegation Chain
+    // =========================================================================
+
+    // Create a second authority
+    let mut auth2 = access_control.setup_blinded_authority()?.with_identity();
+
+    // Root authority delegates to second authority
+    let delegation_cert = auth
+        .delegate_to(
+            &auth2.identity().unwrap().public_key(),
+            crate::access_control::DelegationScope::Full,
+            Some(5000000000), // Far future expiration
+        )
+        .expect("delegation should succeed");
+
+    // Verify delegation certificate
+    assert!(
+        delegation_cert.verify(Some(4000u64)),
+        "delegation cert should verify before expiration"
+    );
+
+    // Verify chain of trust
+    assert_eq!(
+        delegation_cert.delegator_pk.commitment(),
+        auth.identity().unwrap().public_key().commitment(),
+        "delegator should be original authority"
+    );
+    assert_eq!(
+        delegation_cert.delegatee_pk.commitment(),
+        auth2.identity().unwrap().public_key().commitment(),
+        "delegatee should be second authority"
+    );
+
+    println!("Delegation chain verification passed!");
+
     Ok(())
 }
 

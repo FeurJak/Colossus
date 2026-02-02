@@ -43,8 +43,13 @@
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use colossus_core::policy::blinded::{BlindedAttribute, AttributePreimage};
+//! ```
+//! use colossus_core::policy::BlindedAttribute;
+//! use colossus_core::crypto::{Felt, Word};
+//!
+//! // Create test keys (in real usage, these come from Falcon512 key commitments)
+//! let issuer_pk = Word::new([Felt::new(1), Felt::new(2), Felt::new(3), Felt::new(4)]);
+//! let authority_pk = Word::new([Felt::new(5), Felt::new(6), Felt::new(7), Felt::new(8)]);
 //!
 //! // Issuer creates a blinded attribute
 //! let (blinded, preimage) = BlindedAttribute::commit(
@@ -55,10 +60,10 @@
 //! );
 //!
 //! // Later, issuer can prove ownership
-//! assert!(preimage.verify(&blinded.commitment));
+//! assert!(preimage.verify_attribute(&blinded));
 //!
 //! // The commitment can be shared publicly without revealing the attribute
-//! println!("Blinded attribute: {:?}", blinded.commitment);
+//! println!("Blinded attribute commitment: {:?}", blinded.commitment());
 //! ```
 
 use crate::crypto::{Felt, Poseidon2Hash, Word};
@@ -134,13 +139,20 @@ impl BlindedAttribute {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// use colossus_core::policy::BlindedAttribute;
+    /// use colossus_core::crypto::{Felt, Word};
+    ///
+    /// let issuer_pk = Word::new([Felt::new(1), Felt::new(2), Felt::new(3), Felt::new(4)]);
+    /// let authority_pk = Word::new([Felt::new(5), Felt::new(6), Felt::new(7), Felt::new(8)]);
+    ///
     /// let (blinded, preimage) = BlindedAttribute::commit(
     ///     "Security",
     ///     "TopSecret",
-    ///     &issuer.commitment(),
-    ///     &authority.commitment(),
+    ///     &issuer_pk,
+    ///     &authority_pk,
     /// );
+    /// assert!(preimage.verify_attribute(&blinded));
     /// ```
     pub fn commit(
         dimension: &str,
@@ -1887,14 +1899,26 @@ const BATCH_PROOF_DOMAIN: &[u8] = b"COLOSSUS-BATCH-PROOF-V1";
 ///
 /// # Example
 ///
-/// ```ignore
-/// let batch_proof = BatchOwnershipProof::create(
-///     vec![attr1, attr2, attr3],
-///     vec![preimage1, preimage2, preimage3],
-///     &issuer_identity,
-/// )?;
+/// ```
+/// use colossus_core::policy::{BlindedAttribute, IssuerBlindingKey};
+/// use colossus_core::crypto::{Felt, Word};
 ///
-/// assert!(batch_proof.verify(&issuer_public_key));
+/// let authority_pk = Word::new([Felt::new(1), Felt::new(2), Felt::new(3), Felt::new(4)]);
+/// let mut issuer = IssuerBlindingKey::new();
+/// issuer.register_with_authority(authority_pk, 1000);
+///
+/// // Create blinded attributes
+/// let _attr1 = issuer.create_blinded_attribute("DIM", "A", &authority_pk).unwrap();
+/// let _attr2 = issuer.create_blinded_attribute("DIM", "B", &authority_pk).unwrap();
+///
+/// // Create batch proof
+/// let batch_proof = issuer.prove_ownership_batch(
+///     &[("DIM", "A"), ("DIM", "B")],
+///     &authority_pk,
+/// ).unwrap();
+///
+/// // Verify
+/// assert!(batch_proof.verify(&issuer.identity().public_key()));
 /// ```
 #[derive(Clone)]
 pub struct BatchOwnershipProof {
@@ -2120,11 +2144,26 @@ pub mod dac_integration {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let claim = BlindedClaimBuilder::new(&issuer, authority_pk)
+    /// ```
+    /// use colossus_core::policy::{BlindedClaimBuilder, IssuerBlindingKey};
+    /// use colossus_core::crypto::{Felt, Word};
+    ///
+    /// let authority_pk = Word::new([Felt::new(1), Felt::new(2), Felt::new(3), Felt::new(4)]);
+    /// let mut issuer = IssuerBlindingKey::new();
+    /// issuer.register_with_authority(authority_pk, 1000);
+    ///
+    /// // Pre-create attributes (required before building claims)
+    /// issuer.create_blinded_attribute("Security", "TopSecret", &authority_pk).unwrap();
+    /// issuer.create_blinded_attribute("Department", "Engineering", &authority_pk).unwrap();
+    ///
+    /// // Build batched claim with single signature
+    /// let claim = BlindedClaimBuilder::new(&mut issuer, authority_pk)
     ///     .add_attribute("Security", "TopSecret")
     ///     .add_attribute("Department", "Engineering")
-    ///     .build()?;
+    ///     .build_batched()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(claim.len(), 2);
     /// ```
     pub struct BlindedClaimBuilder<'a> {
         issuer: &'a mut IssuerBlindingKey,

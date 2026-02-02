@@ -10,18 +10,20 @@
 //!
 //! # Quick Start
 //!
-//! ```ignore
+//! ```
 //! use colossus_core::prelude::*;
 //!
 //! // 1. Create an access control instance
 //! let ac = AccessControl::default();
 //!
-//! // 2. Setup a capability authority
-//! let (auth, public_key) = ac.setup_capability_authority()?;
+//! // 2. Setup a capability authority in blinded mode
+//! let auth = ac.setup_blinded_authority().expect("setup failed");
+//! let mut auth = auth.with_identity();
+//! auth.init_blinded_structure().expect("init failed");
 //!
-//! // 3. Issue credentials to users (via DAC module)
-//! // 4. Grant capabilities based on verified credentials
-//! // 5. Encrypt content with access policies
+//! // 3. Register issuers (they vouch for attributes via Falcon512 signatures)
+//! // 4. Grant capabilities based on blinded attribute claims
+//! // 5. Encrypt content with access policies like "AGE::ADULT && LOC::INNER_CITY"
 //! ```
 //!
 //! # Architecture Overview
@@ -114,7 +116,7 @@ pub mod log {
 /// Prelude module for convenient imports.
 ///
 /// Import everything commonly needed with:
-/// ```ignore
+/// ```
 /// use colossus_core::prelude::*;
 /// ```
 pub mod prelude {

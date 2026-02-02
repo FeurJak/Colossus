@@ -24,7 +24,7 @@
 //!
 //! # Usage
 //!
-//! ```ignore
+//! ```
 //! use colossus_core::crypto::{CryptoProvider, DefaultCryptoProvider};
 //!
 //! // Use the default provider
@@ -32,6 +32,7 @@
 //!
 //! // Or use a specific provider
 //! use colossus_core::crypto::Blake3Hash;
+//! use colossus_core::crypto::HashProvider;
 //! let hash = Blake3Hash::hash(b"data");
 //! ```
 

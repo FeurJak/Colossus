@@ -5,11 +5,12 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```
 //! use colossus_core::policy::AccessPolicy;
 //!
 //! // Parse a policy from a string
-//! let policy = AccessPolicy::parse("(AGE::ADULT || AGE::SENIOR) && LOC::INNER_CITY")?;
+//! let policy = AccessPolicy::parse("(AGE::ADULT || AGE::SENIOR) && LOC::INNER_CITY")
+//!     .expect("parse failed");
 //!
 //! // Broadcast policy (anyone can decrypt)
 //! let broadcast = AccessPolicy::Broadcast;
@@ -132,8 +133,10 @@ impl AccessPolicy {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let policy = AccessPolicy::parse("(AGE::ADULT || AGE::SENIOR) && LOC::INNER_CITY")?;
+    /// ```
+    /// use colossus_core::policy::AccessPolicy;
+    /// let policy = AccessPolicy::parse("(AGE::ADULT || AGE::SENIOR) && LOC::INNER_CITY")
+    ///     .expect("parse failed");
     /// ```
     pub fn parse(mut e: &str) -> Result<Self, Error> {
         let seeker = |c: &char| !"()|&".contains(*c);
